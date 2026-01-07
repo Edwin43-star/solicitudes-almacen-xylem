@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ app_name }} - Solicitar</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="page">
+  <div class="topbar">
+    <div class="brand-inline">
+      <div class="logo">xylem</div>
+      <div>
+        <div class="title">{{ app_name }}</div>
+        <div class="muted">Usuario: {{ user }}</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a class="btn secondary" href="{{ url_for('home') }}">Inicio</a>
+      <a class="btn secondary" href="{{ url_for('bandeja') }}">Bandeja</a>
+      <a class="btn secondary" href="{{ url_for('logout') }}">Salir</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Nueva solicitud</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alerts">
+        {% for cat,msg in messages %}
+          <div class="alert {{cat}}">{{ msg }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" class="card form-grid">
+      <div>
+        <label>Código</label>
+        <input name="codigo" placeholder="SAP / Código interno">
+      </div>
+      <div>
+        <label>Nombre</label>
+        <input name="nombre" placeholder="Solicitante" required>
+      </div>
+      <div>
+        <label>Área</label>
+        <input name="area" placeholder="Área" required>
+      </div>
+      <div>
+        <label>Cargo</label>
+        <input name="cargo" placeholder="Cargo" required>
+      </div>
+      <div>
+        <label>Tipo</label>
+        <select name="tipo" required>
+          <option value="">-- Seleccionar --</option>
+          <option>EPP</option>
+          <option>CONSUMIBLE</option>
+          <option>EQUIPO</option>
+          <option>HERRAMIENTA</option>
+          <option>OTRO</option>
+        </select>
+      </div>
+      <div>
+        <label>Cantidad</label>
+        <input name="cantidad" placeholder="1" required>
+      </div>
+      <div class="full">
+        <label>Descripción</label>
+        <input name="descripcion" placeholder="Detalle de lo solicitado" required>
+      </div>
+      <div>
+        <label>Urgencia</label>
+        <select name="urgencia" required>
+          <option value="">-- Seleccionar --</option>
+          <option>BAJA</option>
+          <option>MEDIA</option>
+          <option>ALTA</option>
+        </select>
+      </div>
+      <div class="full">
+        <label>Observación</label>
+        <input name="observacion" placeholder="Opcional">
+      </div>
+
+      <div class="full actions">
+        <button type="submit">Registrar</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

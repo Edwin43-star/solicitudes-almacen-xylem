@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ app_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="page">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="brand-inline">
+        <div class="logo">xylem</div>
+        <div>
+          <div class="title">{{ app_name }}</div>
+          <div class="muted">Usuario: {{ user }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a class="btn secondary" href="{{ url_for('logout') }}">Salir</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+      <a class="tile" href="{{ url_for('solicitar') }}">
+        <h2>Nueva solicitud</h2>
+        <p>Registrar solicitud de EPP / consumible / equipo.</p>
+      </a>
+
+      <a class="tile" href="{{ url_for('bandeja') }}">
+        <h2>Bandeja</h2>
+        <p>Ver solicitudes registradas (últimas 300).</p>
+      </a>
+
+      <a class="tile" href="{{ url_for('health') }}" target="_blank" rel="noreferrer">
+        <h2>Health</h2>
+        <p>Probar conexión con Google Sheets.</p>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
