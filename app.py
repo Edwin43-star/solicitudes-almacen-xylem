@@ -1,15 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request
 
-# ==================================================
-# APP FLASK (IMPORTANTE: debe llamarse "app")
-# ==================================================
+# =========================================================
+# CREAR APP FLASK (ESTO ES CLAVE PARA GUNICORN)
+# =========================================================
 app = Flask(__name__)
 
-# ==================================================
-# RUTAS PRINCIPALES
-# ==================================================
+# =========================================================
+# RUTAS
+# =========================================================
 
 @app.route("/")
+def home():
+    return redirect(url_for("inicio"))
+
+
+@app.route("/inicio")
 def inicio():
     return render_template("inicio.html")
 
@@ -17,7 +22,7 @@ def inicio():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # Aquí luego validaremos usuario/clave
+        # aquí luego validaremos usuario
         return redirect(url_for("bandeja"))
     return render_template("login.html")
 
@@ -27,16 +32,13 @@ def bandeja():
     return render_template("bandeja.html")
 
 
-@app.route("/solicitar", methods=["GET", "POST"])
+@app.route("/solicitar")
 def solicitar():
-    if request.method == "POST":
-        # Aquí luego guardaremos la solicitud
-        return redirect(url_for("bandeja"))
     return render_template("solicitar.html")
 
 
-# ==================================================
-# EJECUCIÓN LOCAL (Render lo ignora, pero es correcto)
-# ==================================================
+# =========================================================
+# EJECUCIÓN LOCAL (NO AFECTA A RENDER)
+# =========================================================
 if __name__ == "__main__":
     app.run(debug=True)
