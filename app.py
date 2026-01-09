@@ -77,3 +77,7 @@ def solicitar():
 # ===============================
 if __name__ == "__main__":
     app.run(debug=True)
+
+@app.route("/solicitar")
+def solicitar():
+    return render_template("solicitar.html")
