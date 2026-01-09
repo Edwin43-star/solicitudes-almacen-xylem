@@ -9,31 +9,23 @@ app = Flask(__name__)
 # ===============================
 
 # 🔹 URL CSV del Catálogo (Google Sheets)
-# Ejemplo:
-# https://docs.google.com/spreadsheets/d/1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys/edit?gid=1981111920#gid=1981111920
+# FORMATO:
+# https://docs.google.com/spreadsheets/d/ID/export?format=csv&gid=GID
 CATALOGO_URL = "PEGA_AQUI_TU_URL_CSV"
 
-# 🔹 URL Google Form para guardar solicitudes
-# Ejemplo:
-# https://https://docs.google.com/forms/d/e/1FAIpQLSexsRoNGpgaHT3bO0H25-m73b_rH5U6SgZz-d4SuOLQEzy8TQ/formResponse
-FORM_URL = "PEGA_AQUI_TU_FORM_URL"
+# 🔹 URL Google Form (formResponse)
+FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSexsRoNGpgaHT3bO0H25-m73b_rH5U6SgZz-d4SuOLQEzy8TQ/formResponse"
 
 # ===============================
 # FUNCIONES
 # ===============================
 
 def leer_catalogo():
-    """
-    Lee el catálogo desde Google Sheets (CSV)
-    y devuelve solo los productos ACTIVOS
-    """
     r = requests.get(CATALOGO_URL)
     r.encoding = "utf-8"
     filas = csv.DictReader(r.text.splitlines())
     return [f for f in filas if f.get("ACTIVO", "").upper() == "SI"]
 
-
-import requests
 
 def guardar_solicitud(data):
     payload = {
@@ -54,30 +46,24 @@ def guardar_solicitud(data):
 def inicio():
     return render_template("inicio.html")
 
-
-@app.route("/solicitar", methods=["GET", "POST"])
-def solicitar():
-    catalogo = leer_catalogo()
-
-    if request.method == "POST":
-        solicitud = {
-            "usuario": request.form["usuario"],
-            "codigo": request.form["codigo"],
-            "descripcion": request.form["descripcion"],
-            "cantidad": request.form["cantidad"],
-        }
-        guardar_solicitud(solicitud)
-        return redirect(url_for("inicio"))
-
-    return render_template("solicitar.html", catalogo=catalogo)
-
-
-# ===============================
-# MAIN (solo para local)
-# ===============================
-if __name__ == "__main__":
-    app.run(debug=True)
-
 @app.route("/solicitar")
 def solicitar():
     return render_template("solicitar.html")
+
+@app.route("/enviar", methods=["POST"])
+def enviar():
+    data = {
+        "usuario": request.form.get("usuario"),
+        "codigo": request.form.get("codigo"),
+        "descripcion": request.form.get("descripcion"),
+        "cantidad": request.form.get("cantidad"),
+    }
+
+    guardar_solicitud(data)
+    return redirect(url_for("inicio"))
+
+# ===============================
+# MAIN (solo local)
+# ===============================
+if __name__ == "__main__":
+    app.run(debug=True)
