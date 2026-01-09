@@ -1,1 +1,19 @@
-<h1>Solicitar</h1>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Solicitud de Almacén</title>
+</head>
+<body>
+    <h2>Solicitud de Almacén</h2>
+
+    <form method="post" action="/enviar">
+        <input type="text" name="usuario" placeholder="Usuario" required><br><br>
+        <input type="text" name="codigo" placeholder="Código" required><br><br>
+        <input type="text" name="descripcion" placeholder="Descripción" required><br><br>
+        <input type="number" name="cantidad" placeholder="Cantidad" required><br><br>
+
+        <button type="submit">Enviar</button>
+    </form>
+</body>
+</html>
