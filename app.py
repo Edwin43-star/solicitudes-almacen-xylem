@@ -9,11 +9,14 @@ app = Flask(__name__)
 # ===============================
 
 # 🔹 URL CSV del Catálogo (Google Sheets)
-# FORMATO:
-# "https://docs.google.com/spreadsheets/d/1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys/export?format=csv&gid=1981111920"
+# Archivo → Compartir → Cualquiera con enlace → Ver
+# URL final:
+# https://docs.google.com/spreadsheets/d/ID/export?format=csv&gid=GID=1981111920
 CATALOGO_URL = "PEGA_AQUI_TU_URL_CSV"
 
-# 🔹 URL Google Form (formResponse)
+# 🔹 URL REAL del Google Form (formResponse)
+# NO viewform
+# NO prefill
 FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSexsRoNGpgaHT3bO0H25-m73b_rH5U6SgZz-d4SuOLQEzy8TQ/formResponse"
 
 # ===============================
@@ -24,19 +27,18 @@ def leer_catalogo():
     r = requests.get(CATALOGO_URL)
     r.encoding = "utf-8"
     filas = csv.DictReader(r.text.splitlines())
-    return [f for f in filas if f.get("ACTIVO", "").upper() == "SI"]
-
+    return filas
 
 def guardar_solicitud(data):
     payload = {
-        "entry.858502707": data.get("usuario"),
-        "entry.378566943": data.get("codigo"),
-        "entry.1302630630": data.get("descripcion"),
-        "entry.1355846591": data.get("cantidad"),
+        "entry.858502707": data["usuario"],
+        "entry.378566943": data["codigo"],
+        "entry.1302630630": data["descripcion"],
+        "entry.1355846591": data["cantidad"],
     }
 
     r = requests.post(FORM_URL, data=payload)
-    return r.status_code == 200
+    return r.status_code in (200, 302)
 
 # ===============================
 # RUTAS
@@ -60,10 +62,11 @@ def enviar():
     }
 
     guardar_solicitud(data)
+
     return redirect(url_for("inicio"))
 
 # ===============================
-# MAIN (solo local)
+# MAIN
 # ===============================
 if __name__ == "__main__":
     app.run(debug=True)
