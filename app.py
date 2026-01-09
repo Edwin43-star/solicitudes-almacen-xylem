@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 # 🔹 URL CSV del Catálogo (Google Sheets)
 # FORMATO:
-# https://docs.google.com/spreadsheets/d/ID/export?format=csv&gid=GID
+# "https://docs.google.com/spreadsheets/d/1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys/export?format=csv&gid=1981111920"
 CATALOGO_URL = "PEGA_AQUI_TU_URL_CSV"
 
 # 🔹 URL Google Form (formResponse)
