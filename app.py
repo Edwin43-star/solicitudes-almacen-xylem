@@ -1,30 +1,47 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+import os
+import json
 from datetime import datetime
 
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
+import gspread
+from google.oauth2.service_account import Credentials
+
+# ===============================
+# FLASK
+# ===============================
 app = Flask(__name__)
 
-# ======================================
+# ===============================
 # GOOGLE SHEETS CONFIG
-# ======================================
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-SPREADSHEET_ID = "1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys"
+# ===============================
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
-SHEET_SOLICITUDES = "Solicitudes!A:M"
-SHEET_CATALOGO = "Catalogo!A2:C"
+# 🔐 CREDENCIALES DESDE VARIABLE DE ENTORNO (Render)
+service_account_info = json.loads(
+    os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
+)
 
-creds = Credentials.from_service_account_file(
-    "service_account.json",
+creds = Credentials.from_service_account_info(
+    service_account_info,
     scopes=SCOPES
 )
 
-service = build("sheets", "v4", credentials=creds)
+gc = gspread.authorize(creds)
 
-# ======================================
-# RUTAS VISTAS
-# ======================================
+# 📄 ID DEL SPREADSHEET
+SPREADSHEET_ID = "1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys"
+
+# 📄 Hojas
+SHEET_SOLICITUDES = "Solicitudes"
+SHEET_CATALOGO = "Catalogo"
+
+# ===============================
+# RUTAS HTML
+# ===============================
 @app.route("/")
 def inicio():
     return render_template("inicio.html")
@@ -33,72 +50,69 @@ def inicio():
 def solicitar():
     return render_template("solicitar.html")
 
-# ======================================
-# API CATALOGO
-# ======================================
+# ===============================
+# API CATALOGO (SELECT DINÁMICO)
+# ===============================
 @app.route("/api/catalogo")
 def api_catalogo():
-    result = service.spreadsheets().values().get(
-        spreadsheetId=SPREADSHEET_ID,
-        range=SHEET_CATALOGO
-    ).execute()
+    sh = gc.open_by_key(SPREADSHEET_ID)
+    ws = sh.worksheet(SHEET_CATALOGO)
 
-    values = result.get("values", [])
+    rows = ws.get_all_records()
 
-    catalogo = []
-    for row in values:
-        if len(row) >= 3:
-            catalogo.append({
-                "codigo": row[0],
-                "tipo": row[1],
-                "descripcion": row[2]
-            })
+    # Ajusta campos según tu hoja
+    data = []
+    for r in rows:
+        data.append({
+            "codigo": r.get("CODIGO"),
+            "tipo": r.get("TIPO"),
+            "descripcion": r.get("DESCRIPCION")
+        })
 
-    return jsonify(catalogo)
+    return jsonify(data)
 
-# ======================================
+# ===============================
 # GUARDAR SOLICITUD
-# ======================================
+# ===============================
 @app.route("/enviar", methods=["POST"])
 def enviar():
     usuario = request.form.get("usuario")
     codigo = request.form.get("codigo")
-    tipo = request.form.get("tipo")
     descripcion = request.form.get("descripcion")
     cantidad = request.form.get("cantidad")
+    tipo = request.form.get("tipo", "")
+    urgencia = request.form.get("urgencia", "")
+    observaciones = request.form.get("observaciones", "")
 
-    if not all([usuario, codigo, tipo, descripcion, cantidad]):
+    if not all([usuario, codigo, descripcion, cantidad]):
         return "Faltan datos", 400
 
     now = datetime.now()
 
     fila = [
-        now.strftime("%d/%m/%Y"),   # FECHA
-        now.strftime("%H:%M:%S"),   # HORA
+        now.strftime("%d/%m/%Y"),  # FECHA
+        now.strftime("%H:%M:%S"),  # HORA
         codigo,
         usuario,
-        "almacen",                  # AREA (por ahora fijo)
-        "almacenero",               # CARGO (por ahora fijo)
+        "",              # AREA (futuro)
+        "",              # CARGO (futuro)
         tipo,
         descripcion,
         cantidad,
-        "",                          # URGENCIA
-        "",                          # OBSERVACIONES
+        urgencia,
+        observaciones,
         "PENDIENTE",
         usuario
     ]
 
-    service.spreadsheets().values().append(
-        spreadsheetId=SPREADSHEET_ID,
-        range=SHEET_SOLICITUDES,
-        valueInputOption="USER_ENTERED",
-        body={"values": [fila]}
-    ).execute()
+    sh = gc.open_by_key(SPREADSHEET_ID)
+    ws = sh.worksheet(SHEET_SOLICITUDES)
+    ws.append_row(fila)
 
     return redirect(url_for("inicio"))
 
-# ======================================
+# ===============================
 # MAIN
-# ======================================
+# ===============================
 if __name__ == "__main__":
     app.run(debug=True)
