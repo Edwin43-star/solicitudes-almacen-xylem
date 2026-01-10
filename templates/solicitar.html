@@ -5,15 +5,58 @@
     <title>Solicitud de Almacén</title>
 </head>
 <body>
-    <h2>Solicitud de Almacén</h2>
 
-    <form method="post" action="/enviar">
-        <input type="text" name="usuario" placeholder="Usuario" required><br><br>
-        <input type="text" name="codigo" placeholder="Código" required><br><br>
-        <input type="text" name="descripcion" placeholder="Descripción" required><br><br>
-        <input type="number" name="cantidad" placeholder="Cantidad" required><br><br>
+<h2>Solicitud de Almacén</h2>
 
-        <button type="submit">Enviar</button>
-    </form>
+<form method="POST" action="/enviar">
+
+    <label>Usuario</label><br>
+    <input type="text" name="usuario" value="edwin" required><br><br>
+
+    <label>Producto</label><br>
+    <select id="producto" name="codigo" required>
+        <option value="">Seleccione un producto</option>
+    </select><br><br>
+
+    <label>Tipo</label><br>
+    <input type="text" id="tipo" name="tipo" readonly required><br><br>
+
+    <label>Descripción</label><br>
+    <input type="text" id="descripcion" name="descripcion" readonly required><br><br>
+
+    <label>Cantidad</label><br>
+    <input type="number" name="cantidad" min="1" required><br><br>
+
+    <button type="submit">Enviar</button>
+
+</form>
+
+<script>
+fetch("/api/catalogo")
+  .then(res => res.json())
+  .then(data => {
+    const select = document.getElementById("producto");
+
+    data.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.codigo;
+      option.textContent = `${item.codigo} - ${item.descripcion}`;
+      option.dataset.descripcion = item.descripcion;
+      option.dataset.tipo = item.tipo;
+      select.appendChild(option);
+    });
+  });
+
+document.getElementById("producto").addEventListener("change", function () {
+  const selected = this.options[this.selectedIndex];
+
+  document.getElementById("descripcion").value =
+    selected.dataset.descripcion || "";
+
+  document.getElementById("tipo").value =
+    selected.dataset.tipo || "";
+});
+</script>
+
 </body>
 </html>
