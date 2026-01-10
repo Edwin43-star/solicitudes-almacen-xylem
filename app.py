@@ -5,9 +5,6 @@ import json
 import os
 from google.oauth2.service_account import Credentials
 
-# ===============================
-# APP
-# ===============================
 app = Flask(__name__)
 
 # ===============================
@@ -20,12 +17,7 @@ SCOPES = [
 
 SPREADSHEET_ID = "1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys"
 
-# ===============================
-# AUTENTICACIÓN SEGURA (RENDER)
-# ===============================
-service_account_info = json.loads(
-    os.environ.get("GOOGLE_SERVICE_ACCOUNT")
-)
+service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT"])
 
 credentials = Credentials.from_service_account_info(
     service_account_info,
@@ -50,29 +42,49 @@ def solicitar():
     return render_template("solicitar.html")
 
 # ===============================
-# API CATÁLOGO
+# API CATÁLOGO (FILTRADO + STOCK)
 # ===============================
 @app.route("/api/catalogo")
 def api_catalogo():
     tipo = request.args.get("tipo")
-
     rows = ws_catalogo.get_all_records()
 
-    if tipo:
-        rows = [r for r in rows if r["TIPO"].upper() == tipo.upper()]
+    data = []
+    for r in rows:
+        if r["ACTIVO"] != "SI":
+            continue
+        if tipo and r["TIPO"].upper() != tipo.upper():
+            continue
 
-    return jsonify(rows)
+        data.append({
+            "codigo": r["CODIGO"],
+            "descripcion": r["DESCRIPCION"],
+            "stock": int(r["STOCK"]),
+            "tipo": r["TIPO"]
+        })
+
+    return jsonify(data)
 
 # ===============================
-# ENVIAR SOLICITUD
+# ENVIAR SOLICITUD (VALIDA STOCK)
 # ===============================
 @app.route("/enviar", methods=["POST"])
 def enviar():
-    nombre = request.form["usuario"]
+    usuario = request.form["usuario"]
     codigo = request.form["codigo"]
-    tipo = request.form["tipo"]
     descripcion = request.form["descripcion"]
-    cantidad = request.form["cantidad"]
+    tipo = request.form["tipo"]
+    cantidad = int(request.form["cantidad"])
+
+    # Buscar stock actual
+    catalogo = ws_catalogo.get_all_records()
+    item = next((x for x in catalogo if x["CODIGO"] == codigo), None)
+
+    if not item:
+        return "Producto no existe", 400
+
+    if cantidad > int(item["STOCK"]):
+        return "Stock insuficiente", 400
 
     now = datetime.now()
 
@@ -80,12 +92,12 @@ def enviar():
         now.strftime("%d/%m/%Y"),
         now.strftime("%H:%M:%S"),
         codigo,
-        nombre,
+        usuario,
         tipo,
         descripcion,
         cantidad,
         "PENDIENTE",
-        nombre
+        usuario
     ])
 
     return redirect(url_for("inicio"))
