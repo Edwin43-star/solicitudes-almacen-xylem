@@ -1,74 +1,144 @@
 {% extends "base.html" %}
-
-{% block title %}Nueva Solicitud{% endblock %}
-
 {% block content %}
-<h2>Nueva Solicitud</h2>
 
-<form method="POST" action="/enviar" class="form-card">
+<div class="card">
+  <h1>Nueva Solicitud</h1>
 
-    <label>Usuario</label>
-    <input type="text" name="usuario" required placeholder="Ingrese su nombre">
+  <form method="POST" action="{{ url_for('enviar') }}" id="frm">
+    <div class="grid-2">
+      <div>
+        <label>Usuario</label>
+        <input name="usuario" value="{{ solicitante }}" readonly>
+      </div>
 
-    <label>Tipo</label>
-    <select name="tipo" id="tipo" required>
-        <option value="">-- Seleccione --</option>
-        <option value="EPP">EPP</option>
-        <option value="CONSUMIBLE">Consumible</option>
-        <option value="HERRAMIENTA">Herramienta</option>
-        <option value="EQUIPO">Equipo</option>
-    </select>
+      <div>
+        <label>Tipo</label>
+        <select name="tipo" id="tipo" required></select>
+      </div>
+    </div>
 
-    <label>Producto</label>
-    <select id="producto" required>
-        <option value="">Seleccione un producto</option>
-    </select>
+    <label>Producto (buscador con autocompletar)</label>
+    <input id="producto" list="lista_productos" placeholder="Escribe para buscar..." autocomplete="off" required>
+    <datalist id="lista_productos"></datalist>
 
-    <!-- Campos ocultos que viajan al backend -->
+    <!-- valores reales que se envían -->
     <input type="hidden" name="codigo" id="codigo">
     <input type="hidden" name="descripcion" id="descripcion">
 
-    <div class="stock-box" id="stockBox" style="display:none;">
-        Stock disponible: <strong id="stock"></strong>
+    <div class="grid-2">
+      <div>
+        <label>Cantidad</label>
+        <input type="number" name="cantidad" id="cantidad" value="1" min="1" required>
+      </div>
+
+      <div class="stock-box">
+        <div class="stock-title">Stock disponible</div>
+        <div class="stock-value" id="stock">—</div>
+        <div class="muted" id="um"></div>
+      </div>
     </div>
 
-    <label>Cantidad</label>
-    <input type="number" name="cantidad" id="cantidad" min="1" required>
-
-    <button type="submit">Enviar Solicitud</button>
-</form>
+    <button class="btn btn-dark" type="submit">Enviar Solicitud</button>
+  </form>
+</div>
 
 <script>
-const tipo = document.getElementById("tipo");
-const producto = document.getElementById("producto");
-const codigo = document.getElementById("codigo");
-const descripcion = document.getElementById("descripcion");
-const stockBox = document.getElementById("stockBox");
-const stockSpan = document.getElementById("stock");
+let catalogo = [];
+let lastItems = [];
 
-tipo.addEventListener("change", () => {
-    producto.innerHTML = "<option> Cargando...</option>";
-    fetch(`/api/catalogo?tipo=${tipo.value}`)
-        .then(r => r.json())
-        .then(data => {
-            producto.innerHTML = "<option value=''>Seleccione</option>";
-            data.forEach(p => {
-                const opt = document.createElement("option");
-                opt.value = p.codigo;
-                opt.textContent = `${p.codigo} - ${p.descripcion}`;
-                opt.dataset.descripcion = p.descripcion;
-                opt.dataset.stock = p.stock;
-                producto.appendChild(opt);
-            });
-        });
+async function cargarTipos(){
+  const r = await fetch("/api/tipos");
+  const tipos = await r.json();
+  const sel = document.getElementById("tipo");
+  sel.innerHTML = "";
+  tipos.forEach(t => {
+    const o = document.createElement("option");
+    o.value = t;
+    o.textContent = t;
+    sel.appendChild(o);
+  });
+}
+
+async function buscarCatalogo(tipo, q){
+  const r = await fetch(`/api/catalogo?tipo=${encodeURIComponent(tipo)}&q=${encodeURIComponent(q)}`);
+  const items = await r.json();
+  lastItems = items;
+  const dl = document.getElementById("lista_productos");
+  dl.innerHTML = "";
+  items.forEach(it => {
+    const o = document.createElement("option");
+    o.value = it.label; // "CODIGO - DESCRIPCION"
+    dl.appendChild(o);
+  });
+}
+
+function setProductoDesdeLabel(label){
+  const it = lastItems.find(x => x.label === label);
+  if(!it) return false;
+
+  document.getElementById("codigo").value = it.codigo;
+  document.getElementById("descripcion").value = it.descripcion;
+
+  document.getElementById("stock").textContent = it.stock;
+  document.getElementById("um").textContent = it.um ? ("U.M: " + it.um) : "";
+
+  // Validación visual: cantidad no debe superar stock
+  const c = document.getElementById("cantidad");
+  c.max = it.stock;
+  if(parseInt(c.value || "1", 10) > it.stock){
+    c.value = it.stock > 0 ? it.stock : 1;
+  }
+  return true;
+}
+
+function debounce(fn, ms){
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  }
+}
+
+document.getElementById("tipo").addEventListener("change", async () => {
+  document.getElementById("producto").value = "";
+  document.getElementById("codigo").value = "";
+  document.getElementById("descripcion").value = "";
+  document.getElementById("stock").textContent = "—";
+  document.getElementById("um").textContent = "";
+  await buscarCatalogo(document.getElementById("tipo").value, "");
 });
 
-producto.addEventListener("change", () => {
-    const opt = producto.selectedOptions[0];
-    codigo.value = opt.value;
-    descripcion.value = opt.dataset.descripcion;
-    stockSpan.textContent = opt.dataset.stock;
-    stockBox.style.display = "block";
+document.getElementById("producto").addEventListener("input", debounce(async (e) => {
+  const tipo = document.getElementById("tipo").value;
+  const q = e.target.value.trim();
+  await buscarCatalogo(tipo, q);
+}, 250));
+
+document.getElementById("producto").addEventListener("change", (e) => {
+  setProductoDesdeLabel(e.target.value);
 });
+
+document.getElementById("frm").addEventListener("submit", (e) => {
+  // Validación final: debe tener código y descripción reales
+  const codigo = document.getElementById("codigo").value.trim();
+  const desc = document.getElementById("descripcion").value.trim();
+  if(!codigo || !desc){
+    e.preventDefault();
+    alert("Selecciona un producto válido del buscador.");
+    return;
+  }
+  const stock = parseInt(document.getElementById("stock").textContent || "0", 10);
+  const cant = parseInt(document.getElementById("cantidad").value || "0", 10);
+  if(cant <= 0 || cant > stock){
+    e.preventDefault();
+    alert("Cantidad inválida. No puede superar el stock.");
+  }
+});
+
+(async function init(){
+  await cargarTipos();
+  await buscarCatalogo(document.getElementById("tipo").value, "");
+})();
 </script>
+
 {% endblock %}

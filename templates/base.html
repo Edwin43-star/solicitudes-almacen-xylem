@@ -1,26 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>{% block title %}Sistema de Almacén{% endblock %}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title if title else "Sistema de Solicitudes - Xylem" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/xylem.png') }}" alt="Xylem" onerror="this.style.display='none'">
+      <div class="brand-text">
+        <div class="brand-title">Sistema de Solicitudes de Almacén</div>
+        <div class="brand-sub">Xylem Perú – Unidad Minera Antamina</div>
+      </div>
+    </div>
 
-<header class="header">
-    <img src="{{ url_for('static', filename='img/xylem.png') }}" class="logo">
-    <h1>Sistema de Solicitudes de Almacén</h1>
-</header>
+    <div class="top-actions">
+      {% if session.get("role") %}
+        <span class="chip">{{ session.get("role")|upper }}: {{ session.get("user_name") }}</span>
+        <a class="btn btn-ghost" href="{{ url_for('logout') }}">Salir</a>
+      {% endif %}
+    </div>
+  </header>
 
-<main class="container">
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for category, msg in messages %}
+            <div class="flash flash-{{category}}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
     {% block content %}{% endblock %}
-</main>
+  </main>
 
-<footer class="footer">
-    Xylem Perú – Unidad Minera Antamina
-</footer>
-
+  <footer class="footer">
+    <div>© {{ datetime.utcnow().year if datetime else "" }} Xylem Perú</div>
+  </footer>
 </body>
 </html>

@@ -1,1 +1,74 @@
-<h1>Bandeja</h1>
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <div class="row">
+    <h1>Bandeja de Solicitudes</h1>
+    <div class="muted">Atiende: <b>{{ user_name }}</b></div>
+  </div>
+
+  <div class="tabs">
+    <a class="tab {{'active' if estado=='PENDIENTE' else ''}}" href="{{ url_for('bandeja', estado='PENDIENTE') }}">Pendientes</a>
+    <a class="tab {{'active' if estado=='APROBADO' else ''}}" href="{{ url_for('bandeja', estado='APROBADO') }}">Aprobadas</a>
+    <a class="tab {{'active' if estado=='DESPACHADO' else ''}}" href="{{ url_for('bandeja', estado='DESPACHADO') }}">Despachadas</a>
+  </div>
+
+  {% if not rows %}
+    <p class="muted">No hay solicitudes en estado {{ estado }}.</p>
+  {% else %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Código</th>
+            <th>Solicitante</th>
+            <th>Tipo</th>
+            <th>Descripción</th>
+            <th>Cant.</th>
+            <th>Estado</th>
+            <th>Registrado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.get('FECHA','') }}</td>
+            <td>{{ r.get('HORA','') }}</td>
+            <td class="mono">{{ r.get('CODIGO','') }}</td>
+            <td>{{ r.get('NOMBRE','') }}</td>
+            <td>{{ r.get('TIPO','') }}</td>
+            <td>{{ r.get('DESCRIPCION','') }}</td>
+            <td class="center">{{ r.get('CANTIDAD','') }}</td>
+            <td><span class="pill">{{ r.get('ESTADO','') }}</span></td>
+            <td>{{ r.get('REGISTRADO','') }}</td>
+            <td>
+              {% if estado == "PENDIENTE" %}
+                <form method="POST" action="{{ url_for('bandeja_accion') }}">
+                  <input type="hidden" name="rownum" value="{{ r.get('_rownum') }}">
+                  <input type="hidden" name="accion" value="APROBAR">
+                  <input type="hidden" name="estado_back" value="{{ estado }}">
+                  <button class="btn btn-mini" type="submit">Aprobar</button>
+                </form>
+              {% elif estado == "APROBADO" %}
+                <form method="POST" action="{{ url_for('bandeja_accion') }}">
+                  <input type="hidden" name="rownum" value="{{ r.get('_rownum') }}">
+                  <input type="hidden" name="accion" value="DESPACHAR">
+                  <input type="hidden" name="estado_back" value="{{ estado }}">
+                  <button class="btn btn-mini btn-dark" type="submit">Despachar</button>
+                </form>
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}
