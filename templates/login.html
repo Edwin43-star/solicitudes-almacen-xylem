@@ -1,1 +1,58 @@
-<h1>Login</h1>
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h1>Ingreso</h1>
+  <p class="muted">El personal ingresa sin contraseña. Solo almaceneros requieren clave.</p>
+
+  <div class="grid-2">
+    <!-- PERSONAL -->
+    <div class="panel">
+      <h2>Personal</h2>
+      <form method="POST" action="{{ url_for('login') }}">
+        <input type="hidden" name="mode" value="personal">
+
+        <label>Código o Nombre</label>
+        <input id="usuario_personal" name="usuario_personal" list="lista_usuarios" placeholder="Ej: 1001 o 'ALAYO...'" autocomplete="off" required>
+        <datalist id="lista_usuarios"></datalist>
+
+        <button class="btn" type="submit">Ingresar</button>
+      </form>
+    </div>
+
+    <!-- ALMACENERO -->
+    <div class="panel">
+      <h2>Almaceneros</h2>
+      <form method="POST" action="{{ url_for('login') }}">
+        <input type="hidden" name="mode" value="almacenero">
+
+        <label>Usuario</label>
+        <input name="user_alm" placeholder="Ej: edwin" required>
+
+        <label>Contraseña</label>
+        <input name="pass_alm" type="password" placeholder="••••••••" required>
+
+        <button class="btn btn-dark" type="submit">Ingresar como almacenero</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+async function cargarUsuarios(){
+  try{
+    const r = await fetch("/api/usuarios?q=");
+    const data = await r.json();
+    const dl = document.getElementById("lista_usuarios");
+    dl.innerHTML = "";
+    data.forEach(x => {
+      const o = document.createElement("option");
+      o.value = x;
+      dl.appendChild(o);
+    });
+  }catch(e){}
+}
+cargarUsuarios();
+</script>
+
+{% endblock %}
