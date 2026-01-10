@@ -11,50 +11,57 @@
 <form method="POST" action="/enviar">
 
     <label>Usuario</label><br>
-    <input type="text" name="usuario" value="edwin" required><br><br>
-
-    <label>Producto</label><br>
-    <select id="producto" name="codigo" required>
-        <option value="">Seleccione un producto</option>
-    </select><br><br>
+    <input type="text" name="usuario" required><br><br>
 
     <label>Tipo</label><br>
-    <input type="text" id="tipo" name="tipo" readonly required><br><br>
+    <select id="tipo" name="tipo" required>
+        <option value="">-- Seleccione --</option>
+        <option value="EPP">EPP</option>
+        <option value="CONSUMIBLE">CONSUMIBLE</option>
+        <option value="EQUIPO">EQUIPO</option>
+        <option value="HERRAMIENTA">HERRAMIENTA</option>
+    </select><br><br>
 
-    <label>Descripción</label><br>
-    <input type="text" id="descripcion" name="descripcion" readonly required><br><br>
+    <label>Producto</label><br>
+    <select id="producto" required>
+        <option value="">-- Seleccione tipo primero --</option>
+    </select><br><br>
+
+    <input type="hidden" name="codigo" id="codigo">
+    <input type="hidden" name="descripcion" id="descripcion">
 
     <label>Cantidad</label><br>
-    <input type="number" name="cantidad" min="1" required><br><br>
+    <input type="number" name="cantidad" min="1" value="1" required><br><br>
 
     <button type="submit">Enviar</button>
-
 </form>
 
 <script>
-fetch("/api/catalogo")
-  .then(res => res.json())
-  .then(data => {
-    const select = document.getElementById("producto");
+const tipoSelect = document.getElementById("tipo");
+const productoSelect = document.getElementById("producto");
 
-    data.forEach(item => {
-      const option = document.createElement("option");
-      option.value = item.codigo;
-      option.textContent = `${item.codigo} - ${item.descripcion}`;
-      option.dataset.descripcion = item.descripcion;
-      option.dataset.tipo = item.tipo;
-      select.appendChild(option);
-    });
-  });
+tipoSelect.addEventListener("change", () => {
+    const tipo = tipoSelect.value;
+    productoSelect.innerHTML = "<option>Cargando...</option>";
 
-document.getElementById("producto").addEventListener("change", function () {
-  const selected = this.options[this.selectedIndex];
+    fetch(`/api/catalogo?tipo=${tipo}`)
+        .then(res => res.json())
+        .then(data => {
+            productoSelect.innerHTML = "<option value=''>-- Seleccione --</option>";
+            data.forEach(item => {
+                const opt = document.createElement("option");
+                opt.value = item.CODIGO;
+                opt.textContent = `${item.CODIGO} - ${item.DESCRIPCION}`;
+                opt.dataset.descripcion = item.DESCRIPCION;
+                productoSelect.appendChild(opt);
+            });
+        });
+});
 
-  document.getElementById("descripcion").value =
-    selected.dataset.descripcion || "";
-
-  document.getElementById("tipo").value =
-    selected.dataset.tipo || "";
+productoSelect.addEventListener("change", () => {
+    const selected = productoSelect.options[productoSelect.selectedIndex];
+    document.getElementById("codigo").value = selected.value;
+    document.getElementById("descripcion").value = selected.dataset.descripcion;
 });
 </script>
 
