@@ -1,68 +1,103 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Solicitud de Almacén</title>
+<meta charset="UTF-8">
+<title>Solicitud de Almacén</title>
+<style>
+#lista {
+    border: 1px solid #ccc;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+}
+#lista div {
+    padding: 6px;
+    cursor: pointer;
+}
+#lista div:hover {
+    background: #eee;
+}
+</style>
 </head>
+
 <body>
 
 <h2>Solicitud de Almacén</h2>
 
-<form method="POST" action="/enviar">
+<form method="POST" action="/enviar" onsubmit="return validarStock()">
 
-    <label>Usuario</label><br>
-    <input type="text" name="usuario" required><br><br>
+<label>Usuario</label><br>
+<input type="text" name="usuario" required><br><br>
 
-    <label>Tipo</label><br>
-    <select id="tipo" name="tipo" required>
-        <option value="">-- Seleccione --</option>
-        <option value="EPP">EPP</option>
-        <option value="CONSUMIBLE">CONSUMIBLE</option>
-        <option value="EQUIPO">EQUIPO</option>
-        <option value="HERRAMIENTA">HERRAMIENTA</option>
-    </select><br><br>
+<label>Tipo</label><br>
+<select id="tipo" name="tipo" required>
+    <option value="">-- Seleccione --</option>
+    <option value="EPP">EPP</option>
+    <option value="CONSUMIBLE">CONSUMIBLE</option>
+    <option value="EQUIPO">EQUIPO</option>
+    <option value="HERRAMIENTA">HERRAMIENTA</option>
+</select><br><br>
 
-    <label>Producto</label><br>
-    <select id="producto" required>
-        <option value="">-- Seleccione tipo primero --</option>
-    </select><br><br>
+<label>Buscar producto</label><br>
+<input type="text" id="buscador" autocomplete="off">
+<div id="lista"></div><br>
 
-    <input type="hidden" name="codigo" id="codigo">
-    <input type="hidden" name="descripcion" id="descripcion">
+<strong>Stock disponible: <span id="stock">-</span></strong><br><br>
 
-    <label>Cantidad</label><br>
-    <input type="number" name="cantidad" min="1" value="1" required><br><br>
+<input type="hidden" name="codigo" id="codigo">
+<input type="hidden" name="descripcion" id="descripcion">
 
-    <button type="submit">Enviar</button>
+<label>Cantidad</label><br>
+<input type="number" name="cantidad" id="cantidad" min="1" value="1" required><br><br>
+
+<button type="submit">Enviar</button>
+
 </form>
 
 <script>
-const tipoSelect = document.getElementById("tipo");
-const productoSelect = document.getElementById("producto");
+let catalogo = [];
+let stockActual = 0;
 
-tipoSelect.addEventListener("change", () => {
-    const tipo = tipoSelect.value;
-    productoSelect.innerHTML = "<option>Cargando...</option>";
-
+document.getElementById("tipo").addEventListener("change", () => {
+    const tipo = document.getElementById("tipo").value;
     fetch(`/api/catalogo?tipo=${tipo}`)
-        .then(res => res.json())
-        .then(data => {
-            productoSelect.innerHTML = "<option value=''>-- Seleccione --</option>";
-            data.forEach(item => {
-                const opt = document.createElement("option");
-                opt.value = item.CODIGO;
-                opt.textContent = `${item.CODIGO} - ${item.DESCRIPCION}`;
-                opt.dataset.descripcion = item.DESCRIPCION;
-                productoSelect.appendChild(opt);
-            });
+        .then(r => r.json())
+        .then(data => catalogo = data);
+});
+
+document.getElementById("buscador").addEventListener("input", () => {
+    const texto = buscador.value.toLowerCase();
+    lista.innerHTML = "";
+    lista.style.display = "block";
+
+    catalogo
+        .filter(i => i.descripcion.toLowerCase().includes(texto))
+        .slice(0, 10)
+        .forEach(i => {
+            const div = document.createElement("div");
+            div.textContent = `${i.codigo} - ${i.descripcion}`;
+            div.onclick = () => seleccionar(i);
+            lista.appendChild(div);
         });
 });
 
-productoSelect.addEventListener("change", () => {
-    const selected = productoSelect.options[productoSelect.selectedIndex];
-    document.getElementById("codigo").value = selected.value;
-    document.getElementById("descripcion").value = selected.dataset.descripcion;
-});
+function seleccionar(item) {
+    buscador.value = item.descripcion;
+    codigo.value = item.codigo;
+    descripcion.value = item.descripcion;
+    stock.textContent = item.stock;
+    stockActual = item.stock;
+    lista.style.display = "none";
+}
+
+function validarStock() {
+    const cant = parseInt(document.getElementById("cantidad").value);
+    if (cant > stockActual) {
+        alert("Cantidad mayor al stock disponible");
+        return false;
+    }
+    return true;
+}
 </script>
 
 </body>
