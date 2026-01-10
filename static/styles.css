@@ -1,156 +1,72 @@
-/* Simple, clean styling */
-:root{
-  --bg:#0f1115;
-  --card:#161a22;
-  --text:#e7e9ee;
-  --muted:#9aa3b2;
-  --accent:#4aa3ff;
-  --danger:#ff5c5c;
-  --ok:#34d399;
-  --border:#242b38;
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #F5F7FA;
+    color: #2E2E2E;
 }
 
-*{box-sizing:border-box}
-body.page{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+.header {
+    background: #0077C8;
+    color: white;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
-.container{
-  max-width:1100px;
-  margin:0 auto;
-  padding:28px 18px 60px;
+.logo {
+    height: 45px;
 }
 
-.brand{
-  margin:20px 0 14px;
-}
-.brand-inline{
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
-.logo{
-  font-weight:800;
-  letter-spacing:.5px;
-  color:#1aa3ff;
-  font-size:26px;
-}
-.title{
-  font-weight:700;
-}
-.muted{color:var(--muted); font-size:13px}
-
-.topbar{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:14px 18px;
-  border-bottom:1px solid var(--border);
-  background:#0c0e12;
-  position:sticky; top:0;
+.container {
+    max-width: 600px;
+    margin: 30px auto;
 }
 
-.card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:16px;
+.form-card {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-h1{margin:10px 0 14px}
-h2{margin:0 0 8px}
-
-input, select{
-  width:100%;
-  padding:10px 12px;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:#0b0d12;
-  color:var(--text);
-  outline:none;
-}
-label{display:block; font-size:13px; color:var(--muted); margin:0 0 6px}
-
-button, .btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid transparent;
-  background:var(--accent);
-  color:#071018;
-  font-weight:700;
-  cursor:pointer;
-  text-decoration:none;
-}
-.btn.secondary{
-  background:transparent;
-  border-color:var(--border);
-  color:var(--text);
+label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
 }
 
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
-  gap:14px;
+input, select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
 }
-.tile{
-  display:block;
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:16px;
-  text-decoration:none;
-  color:var(--text);
-}
-.tile:hover{border-color:#2f3a4c}
 
-.form-grid{
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
-  gap:12px;
+button {
+    margin-top: 25px;
+    width: 100%;
+    background: #0077C8;
+    color: white;
+    border: none;
+    padding: 12px;
+    font-size: 16px;
+    cursor: pointer;
 }
-.form-grid .full{grid-column:1 / -1}
-.actions{display:flex; justify-content:flex-end}
 
-.alerts{margin:12px 0}
-.alert{
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  margin-bottom:8px;
+button:hover {
+    background: #005fa3;
 }
-.alert.error{border-color:rgba(255,92,92,.35); color:#ffd1d1}
-.alert.ok{border-color:rgba(52,211,153,.35); color:#c9ffe8}
 
-.hint{margin:10px 0 0; color:var(--muted); font-size:12px}
+.stock-box {
+    margin-top: 10px;
+    padding: 10px;
+    background: #E8F4FD;
+    border-left: 4px solid #0077C8;
+}
 
-.table-wrap{
-  overflow:auto;
-  border:1px solid var(--border);
-  border-radius:14px;
-  background:var(--card);
-}
-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:13px;
-}
-th, td{
-  padding:10px 10px;
-  border-bottom:1px solid var(--border);
-  white-space:nowrap;
-  vertical-align:top;
-}
-th{position:sticky; top:0; background:#121722; text-align:left}
-.badge{
-  display:inline-block;
-  padding:4px 10px;
-  border-radius:999px;
-  border:1px solid var(--border);
+.footer {
+    text-align: center;
+    padding: 15px;
+    font-size: 12px;
+    color: #666;
 }
