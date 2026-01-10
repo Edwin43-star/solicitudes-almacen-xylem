@@ -1,45 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ title if title else "Sistema de Solicitudes - Xylem" }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta charset="UTF-8">
+    <title>Sistema de Solicitudes</title>
+    <style>
+        body { font-family: Arial; background:#f4f6f9; margin:0 }
+        header {
+            background:#0072CE;
+            color:white;
+            padding:10px 20px;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+        }
+        .logo { height:40px }
+        .container { padding:20px }
+        a { color:white; text-decoration:none; margin-left:10px }
+    </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <img class="brand-logo" src="{{ url_for('static', filename='img/xylem.png') }}" alt="Xylem" onerror="this.style.display='none'">
-      <div class="brand-text">
-        <div class="brand-title">Sistema de Solicitudes de Almacén</div>
-        <div class="brand-sub">Xylem Perú – Unidad Minera Antamina</div>
-      </div>
-    </div>
 
-    <div class="top-actions">
-      {% if session.get("role") %}
-        <span class="chip">{{ session.get("role")|upper }}: {{ session.get("user_name") }}</span>
-        <a class="btn btn-ghost" href="{{ url_for('logout') }}">Salir</a>
-      {% endif %}
-    </div>
-  </header>
-
-  <main class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-wrap">
-          {% for category, msg in messages %}
-            <div class="flash flash-{{category}}">{{ msg }}</div>
-          {% endfor %}
+<header>
+    <img src="{{ url_for('static', filename='xylem.png') }}" class="logo">
+    {% if session.get("nombre") %}
+        <div>
+            {{ session["rol"]|upper }}: {{ session["nombre"] }}
+            <a href="{{ url_for('logout') }}">Salir</a>
         </div>
-      {% endif %}
-    {% endwith %}
+    {% endif %}
+</header>
 
+<div class="container">
     {% block content %}{% endblock %}
-  </main>
+</div>
 
-  <footer class="footer">
-    <div>© {{ datetime.utcnow().year if datetime else "" }} Xylem Perú</div>
-  </footer>
 </body>
 </html>

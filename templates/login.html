@@ -1,58 +1,29 @@
-{% extends "base.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html>
+<head><title>Login</title></head>
+<body>
+<h2>Ingreso</h2>
 
-<div class="card">
-  <h1>Ingreso</h1>
-  <p class="muted">El personal ingresa sin contraseña. Solo almaceneros requieren clave.</p>
+{% if error %}
+<p style="color:red">{{ error }}</p>
+{% endif %}
 
-  <div class="grid-2">
-    <!-- PERSONAL -->
-    <div class="panel">
-      <h2>Personal</h2>
-      <form method="POST" action="{{ url_for('login') }}">
-        <input type="hidden" name="mode" value="personal">
+<form method="post">
+<h3>Personal</h3>
+<input name="usuario_personal" placeholder="Código o nombre">
+<input type="hidden" name="mode" value="personal">
+<button>Ingresar</button>
+</form>
 
-        <label>Código o Nombre</label>
-        <input id="usuario_personal" name="usuario_personal" list="lista_usuarios" placeholder="Ej: 1001 o 'ALAYO...'" autocomplete="off" required>
-        <datalist id="lista_usuarios"></datalist>
+<hr>
 
-        <button class="btn" type="submit">Ingresar</button>
-      </form>
-    </div>
+<form method="post">
+<h3>Almaceneros</h3>
+<input name="user_alm" placeholder="Usuario">
+<input name="pass_alm" type="password" placeholder="Contraseña">
+<input type="hidden" name="mode" value="almacenero">
+<button>Ingresar como almacenero</button>
+</form>
 
-    <!-- ALMACENERO -->
-    <div class="panel">
-      <h2>Almaceneros</h2>
-      <form method="POST" action="{{ url_for('login') }}">
-        <input type="hidden" name="mode" value="almacenero">
-
-        <label>Usuario</label>
-        <input name="user_alm" placeholder="Ej: edwin" required>
-
-        <label>Contraseña</label>
-        <input name="pass_alm" type="password" placeholder="••••••••" required>
-
-        <button class="btn btn-dark" type="submit">Ingresar como almacenero</button>
-      </form>
-    </div>
-  </div>
-</div>
-
-<script>
-async function cargarUsuarios(){
-  try{
-    const r = await fetch("/api/usuarios?q=");
-    const data = await r.json();
-    const dl = document.getElementById("lista_usuarios");
-    dl.innerHTML = "";
-    data.forEach(x => {
-      const o = document.createElement("option");
-      o.value = x;
-      dl.appendChild(o);
-    });
-  }catch(e){}
-}
-cargarUsuarios();
-</script>
-
-{% endblock %}
+</body>
+</html>
