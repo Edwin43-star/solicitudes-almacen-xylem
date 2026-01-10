@@ -3,25 +3,32 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 import os
+import json
 
 app = Flask(__name__)
 
 # ===============================
-# GOOGLE SHEETS CONFIG
+# GOOGLE SHEETS CONFIG (PRO)
 # ===============================
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# 👉 Render / Local compatible
-CREDS_FILE = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "service_account.json")
+# 🔐 Leer credencial desde ENV (Render)
+service_account_info = json.loads(
+    os.environ["GOOGLE_SERVICE_ACCOUNT"]
+)
 
-creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+creds = Credentials.from_service_account_info(
+    service_account_info,
+    scopes=SCOPES
+)
+
 gc = gspread.authorize(creds)
 
-SPREADSHEET_NAME = "Solicitudes_Almacen_App"
-sh = gc.open(SPREADSHEET_NAME)
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
+sh = gc.open_by_key(SPREADSHEET_ID)
 
 ws_solicitudes = sh.worksheet("Solicitudes")
 ws_catalogo = sh.worksheet("Catalogo")
@@ -38,7 +45,7 @@ def solicitar():
     return render_template("solicitar.html")
 
 # ===============================
-# API CATÁLOGO
+# API CATÁLOGO (DINÁMICO)
 # ===============================
 @app.route("/api/catalogo")
 def api_catalogo():
@@ -77,7 +84,6 @@ def enviar():
     if not all([usuario, tipo, codigo, descripcion, cantidad]):
         return "Faltan datos", 400
 
-    # Buscar producto en catálogo
     catalogo = ws_catalogo.get_all_records()
     producto = next((p for p in catalogo if p["CODIGO"] == codigo), None)
 
