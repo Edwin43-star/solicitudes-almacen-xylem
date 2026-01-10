@@ -3,101 +3,89 @@
 <head>
 <meta charset="UTF-8">
 <title>Solicitud de Almacén</title>
-<style>
-#lista {
-    border: 1px solid #ccc;
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-}
-#lista div {
-    padding: 6px;
-    cursor: pointer;
-}
-#lista div:hover {
-    background: #eee;
-}
-</style>
 </head>
-
 <body>
 
 <h2>Solicitud de Almacén</h2>
 
-<form method="POST" action="/enviar" onsubmit="return validarStock()">
+<form method="POST" action="/enviar">
 
 <label>Usuario</label><br>
 <input type="text" name="usuario" required><br><br>
 
 <label>Tipo</label><br>
-<select id="tipo" name="tipo" required>
-    <option value="">-- Seleccione --</option>
-    <option value="EPP">EPP</option>
-    <option value="CONSUMIBLE">CONSUMIBLE</option>
-    <option value="EQUIPO">EQUIPO</option>
-    <option value="HERRAMIENTA">HERRAMIENTA</option>
+<select name="tipo" id="tipo" required>
+  <option value="">-- Seleccione --</option>
+  <option value="EPP">EPP</option>
+  <option value="CONSUMIBLE">CONSUMIBLE</option>
+  <option value="EQUIPO">EQUIPO</option>
+  <option value="HERRAMIENTA">HERRAMIENTA</option>
 </select><br><br>
 
-<label>Buscar producto</label><br>
-<input type="text" id="buscador" autocomplete="off">
-<div id="lista"></div><br>
-
-<strong>Stock disponible: <span id="stock">-</span></strong><br><br>
+<label>Producto</label><br>
+<select id="producto" required>
+  <option value="">-- Seleccione --</option>
+</select><br><br>
 
 <input type="hidden" name="codigo" id="codigo">
 <input type="hidden" name="descripcion" id="descripcion">
 
+<label>Stock disponible</label><br>
+<input type="text" id="stock" readonly><br><br>
+
 <label>Cantidad</label><br>
-<input type="number" name="cantidad" id="cantidad" min="1" value="1" required><br><br>
+<input type="number" name="cantidad" id="cantidad" min="1" required><br><br>
 
 <button type="submit">Enviar</button>
 
 </form>
 
 <script>
+const tipo = document.getElementById("tipo");
+const producto = document.getElementById("producto");
+const codigo = document.getElementById("codigo");
+const descripcion = document.getElementById("descripcion");
+const stock = document.getElementById("stock");
+const cantidad = document.getElementById("cantidad");
+
 let catalogo = [];
-let stockActual = 0;
 
-document.getElementById("tipo").addEventListener("change", () => {
-    const tipo = document.getElementById("tipo").value;
-    fetch(`/api/catalogo?tipo=${tipo}`)
-        .then(r => r.json())
-        .then(data => catalogo = data);
-});
+tipo.addEventListener("change", () => {
+    producto.innerHTML = "<option value=''>-- Seleccione --</option>";
+    stock.value = "";
+    codigo.value = "";
+    descripcion.value = "";
 
-document.getElementById("buscador").addEventListener("input", () => {
-    const texto = buscador.value.toLowerCase();
-    lista.innerHTML = "";
-    lista.style.display = "block";
+    if (!tipo.value) return;
 
-    catalogo
-        .filter(i => i.descripcion.toLowerCase().includes(texto))
-        .slice(0, 10)
-        .forEach(i => {
-            const div = document.createElement("div");
-            div.textContent = `${i.codigo} - ${i.descripcion}`;
-            div.onclick = () => seleccionar(i);
-            lista.appendChild(div);
+    fetch(`/api/catalogo?tipo=${tipo.value}`)
+        .then(res => res.json())
+        .then(data => {
+            catalogo = data;
+            data.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.codigo;
+                opt.textContent = `${p.codigo} - ${p.descripcion}`;
+                producto.appendChild(opt);
+            });
         });
 });
 
-function seleccionar(item) {
-    buscador.value = item.descripcion;
-    codigo.value = item.codigo;
-    descripcion.value = item.descripcion;
-    stock.textContent = item.stock;
-    stockActual = item.stock;
-    lista.style.display = "none";
-}
+producto.addEventListener("change", () => {
+    const p = catalogo.find(x => x.codigo === producto.value);
+    if (!p) return;
 
-function validarStock() {
-    const cant = parseInt(document.getElementById("cantidad").value);
-    if (cant > stockActual) {
-        alert("Cantidad mayor al stock disponible");
-        return false;
+    codigo.value = p.codigo;
+    descripcion.value = p.descripcion;
+    stock.value = p.stock;
+});
+
+cantidad.addEventListener("input", () => {
+    if (parseInt(cantidad.value) > parseInt(stock.value)) {
+        alert("Cantidad supera el stock disponible");
+        cantidad.value = stock.value;
     }
-    return true;
-}
+});
 </script>
 
 </body>
