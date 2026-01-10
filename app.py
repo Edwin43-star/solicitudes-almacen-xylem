@@ -1,13 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from datetime import datetime
 import gspread
+import json
+import os
 from google.oauth2.service_account import Credentials
 
 # ===============================
-# CONFIG
+# APP
 # ===============================
 app = Flask(__name__)
 
+# ===============================
+# GOOGLE SHEETS CONFIG
+# ===============================
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -16,10 +21,14 @@ SCOPES = [
 SPREADSHEET_ID = "1asHBISZ2xwhcJ7sRocVqZ-7oLoj7iscF9Rc-xXJWpys"
 
 # ===============================
-# GOOGLE SHEETS
+# AUTENTICACIÓN SEGURA (RENDER)
 # ===============================
-credentials = Credentials.from_service_account_file(
-    "service_account.json",
+service_account_info = json.loads(
+    os.environ.get("GOOGLE_SERVICE_ACCOUNT")
+)
+
+credentials = Credentials.from_service_account_info(
+    service_account_info,
     scopes=SCOPES
 )
 
@@ -30,7 +39,7 @@ ws_solicitudes = sh.worksheet("Solicitudes")
 ws_catalogo = sh.worksheet("Catalogo")
 
 # ===============================
-# RUTAS VISTA
+# RUTAS
 # ===============================
 @app.route("/")
 def inicio():
@@ -41,7 +50,7 @@ def solicitar():
     return render_template("solicitar.html")
 
 # ===============================
-# API CATÁLOGO (PRO)
+# API CATÁLOGO
 # ===============================
 @app.route("/api/catalogo")
 def api_catalogo():
@@ -55,7 +64,7 @@ def api_catalogo():
     return jsonify(rows)
 
 # ===============================
-# GUARDAR SOLICITUD
+# ENVIAR SOLICITUD
 # ===============================
 @app.route("/enviar", methods=["POST"])
 def enviar():
