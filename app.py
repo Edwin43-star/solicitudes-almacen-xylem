@@ -11,13 +11,9 @@ app.secret_key = os.environ.get("SECRET_KEY", "xylem-secret")
 # ===============================
 # GOOGLE SHEETS (ESTABLE)
 # ===============================
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets"
-]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-service_account_info = json.loads(
-    os.environ.get("GOOGLE_SERVICE_ACCOUNT")
-)
+service_account_info = json.loads(os.environ.get("GOOGLE_SERVICE_ACCOUNT"))
 
 creds = Credentials.from_service_account_info(
     service_account_info,
@@ -41,7 +37,7 @@ SHEET_CATALOGO = SPREADSHEET.worksheet("Catalogo")
 def login():
     if request.method == "POST":
 
-        # PERSONAL
+        # -------- PERSONAL --------
         if "personal_nombre" in request.form:
             nombre = request.form["personal_nombre"].strip()
             if not nombre:
@@ -53,7 +49,7 @@ def login():
             session["carrito"] = []
             return redirect("/inicio")
 
-        # ALMACENERO
+        # -------- ALMACENERO --------
         if "usuario" in request.form:
             usuario = request.form["usuario"].upper()
             clave = request.form["clave"]
@@ -67,6 +63,7 @@ def login():
                     session.clear()
                     session["rol"] = "almacenero"
                     session["usuario"] = usuario
+                    session["nombre"] = a["NOMBRE"]
                     return redirect("/bandeja")
 
             return redirect("/login")
@@ -88,8 +85,12 @@ def inicio():
 # ===============================
 @app.route("/solicitar")
 def solicitar():
-    if session.get("rol") != "personal":
+    if "rol" not in session or session["rol"] != "personal":
         return redirect("/login")
+
+    if "carrito" not in session:
+        session["carrito"] = []
+
     return render_template("solicitar.html")
 
 # ===============================
@@ -112,6 +113,9 @@ def api_catalogo(tipo):
 # ===============================
 @app.route("/agregar", methods=["POST"])
 def agregar():
+    if "carrito" not in session:
+        session["carrito"] = []
+
     session["carrito"].append({
         "codigo": request.form["codigo"],
         "descripcion": request.form["descripcion"],
@@ -124,7 +128,8 @@ def agregar():
 # ===============================
 @app.route("/eliminar/<int:i>")
 def eliminar(i):
-    session["carrito"].pop(i)
+    if "carrito" in session:
+        session["carrito"].pop(i)
     return redirect("/solicitar")
 
 # ===============================
@@ -132,10 +137,13 @@ def eliminar(i):
 # ===============================
 @app.route("/enviar", methods=["POST"])
 def enviar():
+    if "rol" not in session or session["rol"] != "personal":
+        return redirect("/login")
+
     fecha = datetime.now().strftime("%d/%m/%Y")
     hora = datetime.now().strftime("%H:%M:%S")
 
-    for item in session["carrito"]:
+    for item in session.get("carrito", []):
         SHEET_SOLICITUDES.append_row([
             fecha,
             hora,
@@ -156,7 +164,7 @@ def enviar():
 # ===============================
 @app.route("/bandeja")
 def bandeja():
-    if session.get("rol") != "almacenero":
+    if "rol" not in session or session["rol"] != "almacenero":
         return redirect("/login")
 
     pendientes = [
