@@ -47,7 +47,9 @@ def login():
             session["rol"] = "personal"
             session["nombre"] = nombre
             session["carrito"] = []
-            return redirect("/inicio")
+
+            # ✅ CORRECCIÓN: ir directo a solicitar
+            return redirect("/solicitar")
 
         # -------- ALMACENERO --------
         if "usuario" in request.form:
@@ -71,13 +73,14 @@ def login():
     return render_template("login.html")
 
 # ===============================
-# INICIO
+# INICIO (PROTEGIDO)
 # ===============================
 @app.route("/")
 @app.route("/inicio")
 def inicio():
     if "rol" not in session:
         return redirect("/login")
+
     return render_template("inicio.html")
 
 # ===============================
@@ -91,7 +94,7 @@ def solicitar():
     if "carrito" not in session:
         session["carrito"] = []
 
-    return render_template("solicitar.html")
+    return render_template("solicitar.html", nombre=session.get("nombre"))
 
 # ===============================
 # API CATALOGO
@@ -121,6 +124,7 @@ def agregar():
         "descripcion": request.form["descripcion"],
         "cantidad": int(request.form["cantidad"])
     })
+
     return redirect("/solicitar")
 
 # ===============================
@@ -128,12 +132,13 @@ def agregar():
 # ===============================
 @app.route("/eliminar/<int:i>")
 def eliminar(i):
-    if "carrito" in session:
+    if "carrito" in session and i < len(session["carrito"]):
         session["carrito"].pop(i)
+
     return redirect("/solicitar")
 
 # ===============================
-# ENVIAR
+# ENVIAR SOLICITUD
 # ===============================
 @app.route("/enviar", methods=["POST"])
 def enviar():
@@ -160,7 +165,7 @@ def enviar():
     return redirect("/inicio")
 
 # ===============================
-# BANDEJA
+# BANDEJA ALMACENERO
 # ===============================
 @app.route("/bandeja")
 def bandeja():
@@ -171,6 +176,7 @@ def bandeja():
         s for s in SHEET_SOLICITUDES.get_all_records()
         if s["ESTADO"] == "PENDIENTE"
     ]
+
     return render_template("bandeja.html", solicitudes=pendientes)
 
 # ===============================
