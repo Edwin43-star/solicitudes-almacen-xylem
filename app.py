@@ -10,7 +10,16 @@ app.secret_key = "xylem-secret-key"
 # GOOGLE SHEETS
 # ===============================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPES)
+
+service_account_info = json.loads(
+    os.environ.get("GOOGLE_SERVICE_ACCOUNT")
+)
+
+creds = Credentials.from_service_account_info(
+    service_account_info,
+    scopes=SCOPES
+)
+
 client = gspread.authorize(creds)
 
 SPREADSHEET = client.open("Solicitudes_Almacen_App")
