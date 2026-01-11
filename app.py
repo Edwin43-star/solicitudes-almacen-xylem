@@ -11,7 +11,10 @@ app.secret_key = "xylem-secret-key"
 # ===============================
 # GOOGLE SHEETS
 # ===============================
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
 service_account_info = json.loads(
     os.environ.get("GOOGLE_SERVICE_ACCOUNT")
