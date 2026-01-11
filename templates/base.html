@@ -1,37 +1,33 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Sistema de Solicitudes</title>
-    <style>
-        body { font-family: Arial; background:#f4f6f9; margin:0 }
-        header {
-            background:#0072CE;
-            color:white;
-            padding:10px 20px;
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-        }
-        .logo { height:40px }
-        .container { padding:20px }
-        a { color:white; text-decoration:none; margin-left:10px }
-    </style>
+<meta charset="UTF-8">
+<title>Sistema de Almacén</title>
+<style>
+body { font-family: Arial; background:#f4f6f8; margin:0; }
+header {
+  background:#0077c8;
+  color:white;
+  padding:12px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.container { padding:20px; }
+button { background:#0077c8; color:white; border:none; padding:6px 12px; cursor:pointer; }
+</style>
 </head>
 <body>
 
 <header>
-    <img src="{{ url_for('static', filename='xylem.png') }}" class="logo">
-    {% if session.get("nombre") %}
-        <div>
-            {{ session["rol"]|upper }}: {{ session["nombre"] }}
-            <a href="{{ url_for('logout') }}">Salir</a>
-        </div>
-    {% endif %}
+  <strong>xylem</strong>
+  {% if session.usuario %}
+    {{ session.usuario }} | <a href="/salir" style="color:white">Salir</a>
+  {% endif %}
 </header>
 
 <div class="container">
-    {% block content %}{% endblock %}
+{% block content %}{% endblock %}
 </div>
 
 </body>

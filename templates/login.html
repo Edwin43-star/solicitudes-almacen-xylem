@@ -1,29 +1,23 @@
-<!DOCTYPE html>
-<html>
-<head><title>Login</title></head>
-<body>
+{% extends "base.html" %}
+{% block content %}
+
 <h2>Ingreso</h2>
 
-{% if error %}
-<p style="color:red">{{ error }}</p>
-{% endif %}
-
-<form method="post">
-<h3>Personal</h3>
-<input name="usuario_personal" placeholder="Código o nombre">
-<input type="hidden" name="mode" value="personal">
+<form method="POST">
+<input type="hidden" name="tipo" value="personal">
+<b>Personal</b><br>
+<input name="nombre" placeholder="Nombres y Apellidos" required>
 <button>Ingresar</button>
 </form>
 
 <hr>
 
-<form method="post">
-<h3>Almaceneros</h3>
-<input name="user_alm" placeholder="Usuario">
-<input name="pass_alm" type="password" placeholder="Contraseña">
-<input type="hidden" name="mode" value="almacenero">
+<form method="POST">
+<input type="hidden" name="tipo" value="almacenero">
+<b>Almaceneros</b><br>
+<input name="usuario" placeholder="Usuario" required>
+<input name="clave" type="password" placeholder="Contraseña" required>
 <button>Ingresar como almacenero</button>
 </form>
 
-</body>
-</html>
+{% endblock %}

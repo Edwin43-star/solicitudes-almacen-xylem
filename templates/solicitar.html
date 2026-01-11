@@ -1,17 +1,48 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2>Nueva Solicitud</h2>
 
-<form method="post">
-<select name="codigo">
-{% for c in catalogo %}
-<option value="{{ c.CODIGO }}">
-{{ c.CODIGO }} - {{ c.DESCRIPCION }}
-</option>
-{% endfor %}
+<form method="POST" action="/enviar" id="form">
+<select id="tipo">
+<option value="">Seleccione Tipo</option>
+<option>EPP</option>
+<option>CONSUMIBLE</option>
+<option>EQUIPO</option>
 </select>
 
-<input type="number" name="cantidad" value="1" min="1">
-<button>Enviar</button>
+<div id="items"></div>
+<button type="button" onclick="addItem()">Agregar Ítem</button>
+<br><br>
+<button>Enviar Solicitud</button>
 </form>
+
+<script>
+const catalogo = {{ catalogo|tojson }};
+
+function addItem() {
+  let tipo = document.getElementById("tipo").value;
+  let div = document.createElement("div");
+
+  let select = document.createElement("select");
+  select.name = "item[]";
+  catalogo.filter(p => p.TIPO == tipo).forEach(p => {
+    let o = document.createElement("option");
+    o.value = p.CODIGO;
+    o.text = p.CODIGO + " - " + p.DESCRIPCION + " (Stock: " + p.STOCK + ")";
+    select.appendChild(o);
+  });
+
+  let qty = document.createElement("input");
+  qty.type = "number";
+  qty.name = "cantidad[]";
+  qty.value = 1;
+  qty.min = 1;
+
+  div.appendChild(select);
+  div.appendChild(qty);
+  document.getElementById("items").appendChild(div);
+}
+</script>
+
 {% endblock %}

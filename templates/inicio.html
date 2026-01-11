@@ -1,12 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Inicio</h2>
-
-{% if session["rol"] == "personal" %}
-<a href="{{ url_for('solicitar') }}">Nueva Solicitud</a>
-{% endif %}
-
-{% if session["rol"] == "almacenero" %}
-<a href="{{ url_for('bandeja') }}">Bandeja</a>
-{% endif %}
+<a href="/solicitar">Nueva Solicitud</a>
 {% endblock %}
