@@ -1,108 +1,182 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, session, jsonify
+from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
-import os
-import json
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
+app.secret_key = "xylem-secret-key"
 
+# ===============================
+# GOOGLE SHEETS
+# ===============================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-creds_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT"])
-creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
-gc = gspread.authorize(creds)
+creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPES)
+client = gspread.authorize(creds)
 
-SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
-sh = gc.open_by_key(SPREADSHEET_ID)
+SPREADSHEET = client.open("Solicitudes_Almacen_App")
+SHEET_SOLICITUDES = SPREADSHEET.worksheet("Solicitudes")
+SHEET_USUARIOS = SPREADSHEET.worksheet("Usuarios")
+SHEET_ALMACENEROS = SPREADSHEET.worksheet("Almaceneros")
+SHEET_CATALOGO = SPREADSHEET.worksheet("Catalogo")
 
-ws_usuarios = sh.worksheet("Usuarios")
-ws_almaceneros = sh.worksheet("Almaceneros")
-ws_catalogo = sh.worksheet("Catalogo")
-ws_solicitudes = sh.worksheet("Solicitudes")
-
-# ================= LOGIN =================
+# ===============================
+# LOGIN
+# ===============================
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        tipo = request.form.get("tipo")
 
-        if tipo == "personal":
-            nombre = request.form.get("nombre").strip().upper()
-            session["usuario"] = nombre
+        # ---- PERSONAL ----
+        if "personal_nombre" in request.form:
+            nombre = request.form["personal_nombre"].strip()
+            if nombre == "":
+                return redirect("/login")
+
+            session.clear()
             session["rol"] = "personal"
-            return redirect("/solicitar")
+            session["nombre"] = nombre
+            session["carrito"] = []
 
-        if tipo == "almacenero":
-            user = request.form.get("usuario").upper()
-            clave = request.form.get("clave")
+            return redirect("/inicio")
 
-            rows = ws_almaceneros.get_all_records()
-            for r in rows:
-                if r["USUARIO"] == user and str(r["CLAVE"]) == clave and r["ACTIVO"] == "SI":
-                    session["usuario"] = r["NOMBRE"]
+        # ---- ALMACENERO ----
+        if "usuario" in request.form:
+            usuario = request.form["usuario"].upper()
+            clave = request.form["clave"]
+
+            almaceneros = SHEET_ALMACENEROS.get_all_records()
+            for a in almaceneros:
+                if (
+                    a["USUARIO"].upper() == usuario
+                    and str(a["CLAVE"]) == clave
+                    and a["ACTIVO"] == "SI"
+                ):
+                    session.clear()
                     session["rol"] = "almacenero"
+                    session["usuario"] = usuario
                     return redirect("/bandeja")
+
+            return redirect("/login")
 
     return render_template("login.html")
 
-@app.route("/salir")
-def salir():
-    session.clear()
-    return redirect("/login")
-
-# ================= INICIO =================
+# ===============================
+# INICIO
+# ===============================
 @app.route("/")
+@app.route("/inicio")
 def inicio():
-    if "usuario" not in session:
+    if "rol" not in session:
         return redirect("/login")
     return render_template("inicio.html")
 
-# ================= SOLICITAR =================
-@app.route("/solicitar", methods=["GET", "POST"])
+# ===============================
+# SOLICITAR
+# ===============================
+@app.route("/solicitar")
 def solicitar():
     if session.get("rol") != "personal":
         return redirect("/login")
 
-    catalogo = ws_catalogo.get_all_records()
-    return render_template("solicitar.html", catalogo=catalogo)
+    return render_template("solicitar.html")
 
+# ===============================
+# API CATALOGO POR TIPO
+# ===============================
+@app.route("/api/catalogo/<tipo>")
+def api_catalogo(tipo):
+    items = SHEET_CATALOGO.get_all_records()
+    filtrado = []
+
+    for i in items:
+        if i["TIPO"].upper() == tipo.upper():
+            filtrado.append({
+                "codigo": i["CODIGO"],
+                "descripcion": i["DESCRIPCION"],
+                "stock": i["STOCK"]
+            })
+
+    return jsonify(filtrado)
+
+# ===============================
+# AGREGAR ITEM (CARRITO)
+# ===============================
+@app.route("/agregar", methods=["POST"])
+def agregar():
+    if session.get("rol") != "personal":
+        return redirect("/login")
+
+    codigo = request.form["codigo"]
+    descripcion = request.form["descripcion"]
+    cantidad = int(request.form["cantidad"])
+
+    session["carrito"].append({
+        "codigo": codigo,
+        "descripcion": descripcion,
+        "cantidad": cantidad
+    })
+
+    return redirect("/solicitar")
+
+# ===============================
+# ELIMINAR ITEM
+# ===============================
+@app.route("/eliminar/<int:index>")
+def eliminar(index):
+    if session.get("rol") != "personal":
+        return redirect("/login")
+
+    session["carrito"].pop(index)
+    return redirect("/solicitar")
+
+# ===============================
+# ENVIAR SOLICITUD
+# ===============================
 @app.route("/enviar", methods=["POST"])
 def enviar():
-    items = request.form.getlist("item[]")
-    cantidades = request.form.getlist("cantidad[]")
+    if session.get("rol") != "personal":
+        return redirect("/login")
 
     fecha = datetime.now().strftime("%d/%m/%Y")
     hora = datetime.now().strftime("%H:%M:%S")
+    nombre = session["nombre"]
 
-    catalogo = ws_catalogo.get_all_records()
-
-    for i, codigo in enumerate(items):
-        cant = int(cantidades[i])
-        prod = next(p for p in catalogo if p["CODIGO"] == codigo)
-
-        ws_solicitudes.append_row([
+    for item in session["carrito"]:
+        SHEET_SOLICITUDES.append_row([
             fecha,
             hora,
-            prod["CODIGO"],
-            session["usuario"],
-            prod["TIPO"],
-            prod["DESCRIPCION"],
-            cant,
+            item["codigo"],
+            nombre,
+            "SOLICITUD",
+            item["descripcion"],
+            item["cantidad"],
             "PENDIENTE",
-            "SISTEMA"
+            nombre
         ])
 
-    return redirect("/")
+    session["carrito"] = []
+    return redirect("/inicio")
 
-# ================= BANDEJA =================
+# ===============================
+# BANDEJA ALMACENERO
+# ===============================
 @app.route("/bandeja")
 def bandeja():
     if session.get("rol") != "almacenero":
         return redirect("/login")
 
-    data = ws_solicitudes.get_all_records()
-    return render_template("bandeja.html", data=data)
+    solicitudes = SHEET_SOLICITUDES.get_all_records()
+    pendientes = [s for s in solicitudes if s["ESTADO"] == "PENDIENTE"]
+
+    return render_template("bandeja.html", solicitudes=pendientes)
+
+# ===============================
+# LOGOUT
+# ===============================
+@app.route("/salir")
+def salir():
+    session.clear()
+    return redirect("/login")
 
 if __name__ == "__main__":
     app.run(debug=True)
