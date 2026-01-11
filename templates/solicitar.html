@@ -3,46 +3,66 @@
 
 <h2>Nueva Solicitud</h2>
 
-<form method="POST" action="/enviar" id="form">
-<select id="tipo">
-<option value="">Seleccione Tipo</option>
-<option>EPP</option>
-<option>CONSUMIBLE</option>
-<option>EQUIPO</option>
-</select>
+<form method="post" action="/agregar">
+    <select id="tipo" required>
+        <option value="">Seleccione Tipo</option>
+        <option>EPP</option>
+        <option>CONSUMIBLE</option>
+        <option>EQUIPO</option>
+        <option>HERRAMIENTAS</option>
+    </select>
 
-<div id="items"></div>
-<button type="button" onclick="addItem()">Agregar Ítem</button>
-<br><br>
-<button>Enviar Solicitud</button>
+    <select name="codigo" id="catalogo" required></select>
+    <input type="hidden" name="descripcion" id="descripcion">
+
+    <input type="number" name="cantidad" min="1" value="1" required>
+    <button type="submit">Agregar</button>
+</form>
+
+<hr>
+
+<h3>Items Agregados</h3>
+<table border="1">
+<tr>
+    <th>Descripción</th>
+    <th>Cantidad</th>
+    <th>Acción</th>
+</tr>
+
+{% for item in session["carrito"] %}
+<tr>
+    <td>{{ item.descripcion }}</td>
+    <td>{{ item.cantidad }}</td>
+    <td><a href="/eliminar/{{ loop.index0 }}">Eliminar</a></td>
+</tr>
+{% endfor %}
+</table>
+
+<form method="post" action="/enviar">
+    <button type="submit">Enviar Solicitud</button>
 </form>
 
 <script>
-const catalogo = {{ catalogo|tojson }};
+document.getElementById("tipo").addEventListener("change", function () {
+    fetch("/api/catalogo/" + this.value)
+        .then(r => r.json())
+        .then(data => {
+            let sel = document.getElementById("catalogo");
+            sel.innerHTML = "";
+            data.forEach(i => {
+                let opt = document.createElement("option");
+                opt.value = i.codigo;
+                opt.text = `${i.codigo} - ${i.descripcion} (Stock: ${i.stock})`;
+                opt.dataset.descripcion = i.descripcion;
+                sel.appendChild(opt);
+            });
+        });
+});
 
-function addItem() {
-  let tipo = document.getElementById("tipo").value;
-  let div = document.createElement("div");
-
-  let select = document.createElement("select");
-  select.name = "item[]";
-  catalogo.filter(p => p.TIPO == tipo).forEach(p => {
-    let o = document.createElement("option");
-    o.value = p.CODIGO;
-    o.text = p.CODIGO + " - " + p.DESCRIPCION + " (Stock: " + p.STOCK + ")";
-    select.appendChild(o);
-  });
-
-  let qty = document.createElement("input");
-  qty.type = "number";
-  qty.name = "cantidad[]";
-  qty.value = 1;
-  qty.min = 1;
-
-  div.appendChild(select);
-  div.appendChild(qty);
-  document.getElementById("items").appendChild(div);
-}
+document.getElementById("catalogo").addEventListener("change", function () {
+    let opt = this.options[this.selectedIndex];
+    document.getElementById("descripcion").value = opt.dataset.descripcion;
+});
 </script>
 
 {% endblock %}
