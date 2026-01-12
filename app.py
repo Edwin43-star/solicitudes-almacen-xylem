@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, jsonify
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super_secret_key_cambia_esto")
 
 # =========================
-# GOOGLE SHEETS CONEXIÓN
+# GOOGLE SHEETS
 # =========================
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -32,22 +32,23 @@ SH_ALM = SPREADSHEET.worksheet("Almaceneros")
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # LOGIN PERSONAL
+
+        # PERSONAL
         if "nombre" in request.form:
-            nombre = request.form.get("nombre").strip()
+            nombre = request.form.get("nombre", "").strip()
             if nombre:
                 session.clear()
                 session["usuario"] = nombre
                 session["rol"] = "personal"
+                session["items"] = []
                 return redirect(url_for("solicitar"))
 
-        # LOGIN ALMACENERO
+        # ALMACENERO
         if "usuario" in request.form:
-            user = request.form.get("usuario").strip()
-            pwd = request.form.get("password").strip()
+            user = request.form.get("usuario", "").strip()
+            pwd = request.form.get("password", "").strip()
 
-            rows = SH_ALM.get_all_records()
-            for r in rows:
+            for r in SH_ALM.get_all_records():
                 if r["USUARIO"] == user and r["PASSWORD"] == pwd:
                     session.clear()
                     session["usuario"] = user
@@ -57,37 +58,47 @@ def login():
     return render_template("login.html")
 
 # =========================
-# SOLICITAR (TRABAJADOR)
+# INICIO
+# =========================
+@app.route("/inicio")
+def inicio():
+    if "usuario" not in session:
+        return redirect(url_for("login"))
+
+    return render_template(
+        "inicio.html",
+        usuario=session["usuario"],
+        rol=session.get("rol")
+    )
+
+# =========================
+# SOLICITAR (PERSONAL)
 # =========================
 @app.route("/solicitar", methods=["GET", "POST"])
 def solicitar():
-    if "usuario" not in session or session.get("rol") != "personal":
+    if session.get("rol") != "personal":
         return redirect(url_for("login"))
 
     if "items" not in session:
         session["items"] = []
 
-    # AGREGAR ITEM
+    # AGREGAR
     if request.method == "POST" and "agregar" in request.form:
-        tipo = request.form.get("tipo")
-        item = request.form.get("item")
-        cantidad = request.form.get("cantidad")
-
-        if item and cantidad:
-            session["items"].append({
-                "tipo": tipo,
-                "item": item,
-                "cantidad": cantidad
-            })
-            session.modified = True
-
-    # ELIMINAR ITEM
-    if request.method == "POST" and "eliminar" in request.form:
-        idx = int(request.form.get("eliminar"))
-        session["items"].pop(idx)
+        session["items"].append({
+            "tipo": request.form.get("tipo"),
+            "item": request.form.get("item"),
+            "cantidad": request.form.get("cantidad")
+        })
         session.modified = True
 
-    # ENVIAR SOLICITUD
+    # ELIMINAR
+    if request.method == "POST" and "eliminar" in request.form:
+        idx = int(request.form.get("eliminar"))
+        if 0 <= idx < len(session["items"]):
+            session["items"].pop(idx)
+            session.modified = True
+
+    # ENVIAR
     if request.method == "POST" and "enviar" in request.form:
         fecha = datetime.now().strftime("%d/%m/%Y")
         hora = datetime.now().strftime("%H:%M:%S")
@@ -113,20 +124,11 @@ def solicitar():
     )
 
 # =========================
-# INICIO
-# =========================
-@app.route("/inicio")
-def inicio():
-    if "usuario" not in session:
-        return redirect(url_for("login"))
-    return render_template("inicio.html", usuario=session["usuario"])
-
-# =========================
-# BANDEJA ALMACENERO
+# BANDEJA (ALMACENERO)
 # =========================
 @app.route("/bandeja")
 def bandeja():
-    if "usuario" not in session or session.get("rol") != "almacenero":
+    if session.get("rol") != "almacenero":
         return redirect(url_for("login"))
 
     solicitudes = SH_SOL.get_all_records()
@@ -137,16 +139,17 @@ def bandeja():
     )
 
 # =========================
-# CATALOGO POR TIPO (AJAX)
+# CATALOGO AJAX
 # =========================
 @app.route("/catalogo/<tipo>")
 def catalogo(tipo):
-    data = []
-    rows = SH_CAT.get_all_records()
-    for r in rows:
+    items = []
+    for r in SH_CAT.get_all_records():
         if r["TIPO"] == tipo:
-            data.append(f'{r["CODIGO"]} - {r["DESCRIPCION"]} (Stock: {r["STOCK"]})')
-    return {"items": data}
+            items.append(
+                f'{r["CODIGO"]} - {r["DESCRIPCION"]} (Stock: {r["STOCK"]})'
+            )
+    return jsonify(items=items)
 
 # =========================
 # LOGOUT
