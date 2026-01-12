@@ -12,24 +12,48 @@
 </head>
 <body>
 
-<h2>Ingreso</h2>
+{% extends "base.html" %}
+{% block content %}
 
-<!-- ================= PERSONAL ================= -->
-<form method="POST" action="/login">
-    <h3>Personal</h3>
-    <input type="text" name="nombre" placeholder="Nombres y Apellidos" required>
-    <button type="submit">Ingresar</button>
-</form>
+<div class="row justify-content-center">
+    <div class="col-md-6">
 
-<hr>
+        <div class="card shadow p-4">
 
-<!-- ================= ALMACENERO ================= -->
-<form method="POST" action="/login">
-    <h3>Almaceneros</h3>
-    <input type="text" name="usuario" placeholder="Usuario" required>
-    <input type="password" name="password" placeholder="Contraseña" required>
-    <button type="submit">Ingresar como almacenero</button>
-</form>
+            <h3 class="mb-3"><i class="bi bi-box-arrow-in-right"></i> Ingreso</h3>
 
-</body>
-</html>
+            <!-- PERSONAL -->
+            <form method="POST" class="mb-4">
+                <h6>Personal</h6>
+                <div class="input-group">
+                    <input type="text" name="nombre" class="form-control"
+                           placeholder="Nombres y Apellidos" required>
+                    <button class="btn btn-primary">
+                        Ingresar
+                    </button>
+                </div>
+            </form>
+
+            <hr>
+
+            <!-- ALMACENERO -->
+            <form method="POST">
+                <h6>Almaceneros</h6>
+
+                <input type="text" name="usuario" class="form-control mb-2"
+                       placeholder="Usuario" required>
+
+                <input type="password" name="password" class="form-control mb-3"
+                       placeholder="Contraseña" required>
+
+                <button class="btn btn-success w-100">
+                    <i class="bi bi-shield-lock"></i> Ingresar como almacenero
+                </button>
+            </form>
+
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
