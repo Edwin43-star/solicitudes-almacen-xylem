@@ -6,6 +6,9 @@ from flask import Flask, render_template, request, redirect, session, url_for, j
 import gspread
 from google.oauth2.service_account import Credentials
 
+# =========================
+# APP
+# =========================
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super_secret_key_cambia_esto")
 
@@ -16,6 +19,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
+
+# 🔒 CREDENCIALES DESDE ENV
+if "GOOGLE_CREDENTIALS" not in os.environ:
+    raise Exception("Falta la variable GOOGLE_CREDENTIALS en Render")
 
 creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
@@ -29,11 +36,15 @@ SH_ALM = SPREADSHEET.worksheet("Almaceneros")
 # =========================
 # LOGIN
 # =========================
+@app.route("/", methods=["GET"])
+def root():
+    return redirect(url_for("login"))
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
 
-        # PERSONAL
+        # ---- PERSONAL ----
         if "nombre" in request.form:
             nombre = request.form.get("nombre", "").strip()
             if nombre:
@@ -43,7 +54,7 @@ def login():
                 session["items"] = []
                 return redirect(url_for("solicitar"))
 
-        # ALMACENERO
+        # ---- ALMACENERO ----
         if "usuario" in request.form:
             user = request.form.get("usuario", "").strip()
             pwd = request.form.get("password", "").strip()
@@ -58,20 +69,6 @@ def login():
     return render_template("login.html")
 
 # =========================
-# INICIO
-# =========================
-@app.route("/inicio")
-def inicio():
-    if "usuario" not in session:
-        return redirect(url_for("login"))
-
-    return render_template(
-        "inicio.html",
-        usuario=session["usuario"],
-        rol=session.get("rol")
-    )
-
-# =========================
 # SOLICITAR (PERSONAL)
 # =========================
 @app.route("/solicitar", methods=["GET", "POST"])
@@ -82,7 +79,7 @@ def solicitar():
     if "items" not in session:
         session["items"] = []
 
-    # AGREGAR
+    # ---- AGREGAR ITEM ----
     if request.method == "POST" and "agregar" in request.form:
         session["items"].append({
             "tipo": request.form.get("tipo"),
@@ -91,14 +88,14 @@ def solicitar():
         })
         session.modified = True
 
-    # ELIMINAR
+    # ---- ELIMINAR ITEM ----
     if request.method == "POST" and "eliminar" in request.form:
         idx = int(request.form.get("eliminar"))
         if 0 <= idx < len(session["items"]):
             session["items"].pop(idx)
             session.modified = True
 
-    # ENVIAR
+    # ---- ENVIAR SOLICITUD ----
     if request.method == "POST" and "enviar" in request.form:
         fecha = datetime.now().strftime("%d/%m/%Y")
         hora = datetime.now().strftime("%H:%M:%S")
@@ -115,7 +112,7 @@ def solicitar():
             ])
 
         session["items"] = []
-        return redirect(url_for("inicio"))
+        return redirect(url_for("solicitar"))
 
     return render_template(
         "solicitar.html",
@@ -139,10 +136,13 @@ def bandeja():
     )
 
 # =========================
-# CATALOGO AJAX
+# CATALOGO (AJAX)
 # =========================
 @app.route("/catalogo/<tipo>")
 def catalogo(tipo):
+    if "usuario" not in session:
+        return jsonify(items=[])
+
     items = []
     for r in SH_CAT.get_all_records():
         if r["TIPO"] == tipo:
@@ -159,5 +159,6 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+# =========================
 if __name__ == "__main__":
     app.run(debug=True)
