@@ -3,72 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <title>Ingreso - Xylem</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        input { padding: 6px; margin-right: 6px; }
+        button { padding: 6px 12px; }
+        hr { margin: 25px 0; }
+    </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-primary px-3">
-    <span class="navbar-brand">xylem</span>
-</nav>
+<h2>Ingreso</h2>
 
-<div class="container mt-5">
+<!-- ================= PERSONAL ================= -->
+<form method="POST" action="/login">
+    <h3>Personal</h3>
+    <input type="text" name="nombre" placeholder="Nombres y Apellidos" required>
+    <button type="submit">Ingresar</button>
+</form>
 
-    <h2>Ingreso</h2>
+<hr>
 
-    <!-- ================= PERSONAL ================= -->
-    <form method="POST" action="/login" class="mb-4">
-        <h5>Personal</h5>
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input
-                    type="text"
-                    name="personal_nombre"
-                    class="form-control"
-                    placeholder="Nombres y Apellidos"
-                    required
-                >
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary">
-                    Ingresar
-                </button>
-            </div>
-        </div>
-    </form>
-
-    <hr>
-
-    <!-- ================= ALMACENEROS ================= -->
-    <form method="POST" action="/login">
-        <h5>Almaceneros</h5>
-        <div class="row g-2">
-            <div class="col-md-3">
-                <input
-                    type="text"
-                    name="usuario"
-                    class="form-control"
-                    placeholder="Usuario"
-                    required
-                >
-            </div>
-            <div class="col-md-3">
-                <input
-                    type="password"
-                    name="clave"
-                    class="form-control"
-                    placeholder="Contraseña"
-                    required
-                >
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">
-                    Ingresar como almacenero
-                </button>
-            </div>
-        </div>
-    </form>
-
-</div>
+<!-- ================= ALMACENERO ================= -->
+<form method="POST" action="/login">
+    <h3>Almaceneros</h3>
+    <input type="text" name="usuario" placeholder="Usuario" required>
+    <input type="password" name="password" placeholder="Contraseña" required>
+    <button type="submit">Ingresar como almacenero</button>
+</form>
 
 </body>
 </html>
