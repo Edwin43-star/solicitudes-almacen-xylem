@@ -3,6 +3,13 @@ from flask import Flask, render_template, request, redirect, session, url_for
 app = Flask(__name__)
 app.secret_key = "xylem-secret-key"
 
+# ===============================
+# ROOT
+# ===============================
+@app.route("/")
+def root():
+    return redirect("/login")
+
 # =============================
 # LOGIN
 # =============================
