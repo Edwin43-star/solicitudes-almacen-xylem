@@ -195,3 +195,78 @@ function enviarSolicitud() {
 }
 </script>
 {% endblock %}
+
+<script>
+let catalogo = [];
+let items = [];
+
+async function cargarCatalogo() {
+    const res = await fetch("/api/catalogo");
+    catalogo = await res.json();
+}
+
+document.getElementById("tipo").addEventListener("change", function () {
+    const tipo = this.value;
+    const sel = document.getElementById("descripcion");
+    sel.innerHTML = '<option value="">Seleccione...</option>';
+
+    catalogo
+        .filter(i => i.Tipo.toUpperCase() === tipo.toUpperCase())
+        .forEach(i => {
+            const opt = document.createElement("option");
+            opt.value = i.Descripcion;
+            opt.textContent = i.Descripcion;
+            sel.appendChild(opt);
+        });
+});
+
+document.getElementById("btnAgregar").addEventListener("click", () => {
+    const tipo = tipoSelect.value;
+    const descripcion = descripcionSelect.value;
+    const cantidad = cantidadInput.value;
+
+    if (!descripcion) return alert("Seleccione un producto");
+
+    items.push({ tipo, descripcion, cantidad });
+    renderItems();
+});
+
+function renderItems() {
+    const tbody = document.getElementById("tablaItems");
+    tbody.innerHTML = "";
+
+    items.forEach((i, idx) => {
+        tbody.innerHTML += `
+        <tr>
+            <td>${i.tipo}</td>
+            <td>${i.descripcion}</td>
+            <td>${i.cantidad}</td>
+            <td>
+                <button class="btn btn-danger btn-sm" onclick="eliminar(${idx})">
+                    🗑
+                </button>
+            </td>
+        </tr>`;
+    });
+}
+
+function eliminar(i) {
+    items.splice(i, 1);
+    renderItems();
+}
+
+document.getElementById("btnEnviar").addEventListener("click", async () => {
+    if (items.length === 0) return alert("No hay items para enviar");
+
+    await fetch("/enviar_solicitud", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+    });
+
+    alert("Solicitud enviada");
+    location.reload();
+});
+
+cargarCatalogo();
+</script>
