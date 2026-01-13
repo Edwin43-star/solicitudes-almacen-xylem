@@ -1,96 +1,197 @@
 {% extends "base.html" %}
+{% block title %}Nueva Solicitud{% endblock %}
+
 {% block content %}
-
 <div class="container mt-4">
-  <h3>📦 Nueva Solicitud</h3>
 
-  <div class="row g-2">
-    <div class="col-md-3">
-      <select id="tipo" class="form-select">
-        <option>EPP</option>
-        <option>CONSUMIBLE</option>
-        <option>EQUIPO</option>
-        <option>HERRAMIENTA</option>
-      </select>
-    </div>
+  <h3 class="mb-4">
+    <i class="bi bi-box-seam"></i> Nueva Solicitud
+  </h3>
 
-    <div class="col-md-5">
-      <select id="descripcion" class="form-select"></select>
-    </div>
+  <!-- FORMULARIO -->
+  <div class="card p-3 mb-4 shadow-sm">
+    <div class="row g-2 align-items-end">
 
-    <div class="col-md-2">
-      <input id="cantidad" type="number" value="1" class="form-control">
-    </div>
+      <div class="col-md-3">
+        <label class="form-label">Tipo</label>
+        <select id="tipo" class="form-select">
+          <option value="EPP">EPP</option>
+          <option value="CONSUMIBLE">CONSUMIBLE</option>
+          <option value="EQUIPO">EQUIPO</option>
+          <option value="HERRAMIENTA">HERRAMIENTA</option>
+        </select>
+      </div>
 
-    <div class="col-md-2">
-      <button class="btn btn-primary w-100" onclick="agregar()">+</button>
+      <div class="col-md-5">
+        <label class="form-label">Descripción</label>
+        <select id="descripcion" class="form-select">
+          <option value="">Seleccione...</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Cantidad</label>
+        <input type="number" id="cantidad" class="form-control" value="1" min="1">
+      </div>
+
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" onclick="agregarItem()">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+
     </div>
   </div>
 
-  <hr>
+  <!-- TABLA ITEMS -->
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <i class="bi bi-list-check"></i> Ítems Agregados
+    </div>
 
-  <table class="table mt-3">
-    <thead>
-      <tr>
-        <th>Tipo</th>
-        <th>Descripción</th>
-        <th>Cantidad</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="lista"></tbody>
-  </table>
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tipo</th>
+            <th>Descripción</th>
+            <th class="text-center">Cantidad</th>
+            <th class="text-center">Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tablaItems">
+          <tr>
+            <td colspan="4" class="text-center text-muted">
+              No hay ítems agregados.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-  <button class="btn btn-success" onclick="enviar()">Enviar Solicitud</button>
+  <!-- ENVIAR -->
+  <div class="text-end mt-3">
+    <button class="btn btn-success" onclick="enviarSolicitud()">
+      <i class="bi bi-send"></i> Enviar Solicitud
+    </button>
+  </div>
+
 </div>
 
 <script>
-let items = []
+let items = [];
+let catalogo = {};
 
-async function cargar() {
-  let tipo = document.getElementById("tipo").value
-  let res = await fetch(`/api/catalogo/${tipo}`)
-  let data = await res.json()
-  let sel = document.getElementById("descripcion")
-  sel.innerHTML = ""
-  data.forEach(d => sel.innerHTML += `<option>${d}</option>`)
+// ==============================
+// CARGAR CATÁLOGO DESDE BACKEND
+// ==============================
+fetch("/api/catalogo")
+  .then(r => r.json())
+  .then(data => {
+    catalogo = data;
+    cargarDescripciones();
+  });
+
+document.getElementById("tipo").addEventListener("change", cargarDescripciones);
+
+function cargarDescripciones() {
+  const tipo = document.getElementById("tipo").value;
+  const sel = document.getElementById("descripcion");
+  sel.innerHTML = '<option value="">Seleccione...</option>';
+
+  if (catalogo[tipo]) {
+    catalogo[tipo].forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.textContent = d;
+      sel.appendChild(opt);
+    });
+  }
 }
 
-document.getElementById("tipo").onchange = cargar
-window.onload = cargar
+// ==============================
+// AGREGAR ITEM
+// ==============================
+function agregarItem() {
+  const tipo = document.getElementById("tipo").value;
+  const desc = document.getElementById("descripcion").value;
+  const cant = document.getElementById("cantidad").value;
 
-function agregar() {
+  if (!desc || cant <= 0) {
+    alert("Complete descripción y cantidad");
+    return;
+  }
+
   items.push({
-    tipo: tipo.value,
-    descripcion: descripcion.value,
-    cantidad: cantidad.value
-  })
-  render()
+    tipo: tipo,
+    descripcion: desc,
+    cantidad: cant
+  });
+
+  renderTabla();
 }
 
-function render() {
-  lista.innerHTML = ""
-  items.forEach((i, idx) => {
-    lista.innerHTML += `
+// ==============================
+// ELIMINAR ITEM
+// ==============================
+function eliminarItem(index) {
+  items.splice(index, 1);
+  renderTabla();
+}
+
+// ==============================
+// RENDER TABLA
+// ==============================
+function renderTabla() {
+  const tbody = document.getElementById("tablaItems");
+  tbody.innerHTML = "";
+
+  if (items.length === 0) {
+    tbody.innerHTML = `
       <tr>
-        <td>${i.tipo}</td>
-        <td>${i.descripcion}</td>
-        <td>${i.cantidad}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="items.splice(${idx},1);render()">🗑</button></td>
-      </tr>`
-  })
+        <td colspan="4" class="text-center text-muted">
+          No hay ítems agregados.
+        </td>
+      </tr>`;
+    return;
+  }
+
+  items.forEach((it, i) => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${it.tipo}</td>
+        <td>${it.descripcion}</td>
+        <td class="text-center">${it.cantidad}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-danger" onclick="eliminarItem(${i})">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>`;
+  });
 }
 
-async function enviar() {
-  await fetch("/enviar_solicitud", {
+// ==============================
+// ENVIAR SOLICITUD
+// ==============================
+function enviarSolicitud() {
+  if (items.length === 0) {
+    alert("No hay ítems para enviar");
+    return;
+  }
+
+  fetch("/enviar_solicitud", {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({items})
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: items })
   })
-  alert("Solicitud enviada")
-  items = []
-  render()
+  .then(r => r.json())
+  .then(resp => {
+    alert("Solicitud enviada correctamente");
+    items = [];
+    renderTabla();
+  });
 }
 </script>
-
 {% endblock %}
