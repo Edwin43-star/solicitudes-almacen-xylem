@@ -7,14 +7,11 @@ import os, json
 app = Flask(__name__)
 app.secret_key = "xylem-secret-key"
 
-# ==============================
+# ============================
 # GOOGLE SHEETS
-# ==============================
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS"))
+# ============================
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALIALS"))
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 gc = gspread.authorize(creds)
 
@@ -53,58 +50,69 @@ def login():
 
     return render_template("login.html")
 
+@app.route("/", methods=["GET"])
+def root():
+    return redirect("/login")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        nombre = request.form["nombre"].upper()
+        if nombre in USUARIOS:
+            session["usuario"] = nombre
+            session["rol"] = USUARIOS[nombre]
+            return redirect("/bandeja" if USUARIOS[nombre] == "almacenero" else "/solicitar")
+    return render_template("login.html")
+
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
 
-# ==============================
-# CATÁLOGO API
-# ==============================
-@app.route("/api/catalogo/<tipo>")
-def api_catalogo(tipo):
-    data = ws_catalogo.get_all_records()
-    items = [d["Descripcion"] for d in data if d["Tipo"].upper() == tipo.upper()]
-    return jsonify(items)
-
-# ==============================
+# ============================
 # SOLICITAR
-# ==============================
+# ============================
 @app.route("/solicitar")
 def solicitar():
-    if session.get("rol") != "personal":
+    if "usuario" not in session:
         return redirect("/login")
-    return render_template("solicitar.html")
+    return render_template("solicitar.html", usuario=session["usuario"])
 
+# ============================
+# API CATÁLOGO (CLAVE 🔑)
+# ============================
+@app.route("/api/catalogo")
+def api_catalogo():
+    data = ws_catalogo.get_all_records()
+    return jsonify(data)
+
+# ============================
+# GUARDAR SOLICITUD
+# ============================
 @app.route("/enviar_solicitud", methods=["POST"])
 def enviar_solicitud():
-    items = request.json["items"]
-    usuario = session["usuario"]
+    data = request.json
     fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    for it in items:
+    for item in data["items"]:
         ws_solicitudes.append_row([
             fecha,
-            usuario,
-            it["tipo"],
-            it["descripcion"],
-            it["cantidad"],
+            session["usuario"],
+            item["tipo"],
+            item["descripcion"],
+            item["cantidad"],
             "PENDIENTE"
         ])
 
     return jsonify({"ok": True})
 
-# ==============================
+# ============================
 # BANDEJA ALMACENERO
-# ==============================
+# ============================
 @app.route("/bandeja")
 def bandeja():
     if session.get("rol") != "almacenero":
-        return redirect("/login")
+        return redirect("/solicitar")
 
-    data = ws_solicitudes.get_all_records()
-    return render_template("bandeja.html", solicitudes=data)
-
-# ==============================
-if __name__ == "__main__":
-    app.run(debug=True)
+    registros = ws_solicitudes.get_all_records()
+    return render_template("bandeja.html", registros=registros, usuario=session["usuario"])
