@@ -4,164 +4,142 @@
 {% block content %}
 <div class="container mt-4">
 
-  <h3 class="mb-4">
-    <i class="bi bi-clipboard-plus"></i> Nueva Solicitud
-  </h3>
+  <h3><i class="bi bi-clipboard-plus"></i> Nueva Solicitud</h3>
 
-  <!-- FORMULARIO -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <div class="row g-3 align-items-end">
+  <div class="card p-3 mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label>Tipo</label>
+        <select id="tipo" class="form-select" onchange="cargarCatalogo()">
+          <option value="EPP">EPP</option>
+          <option value="CONSUMIBLE">Consumible</option>
+        </select>
+      </div>
 
-        <div class="col-md-3">
-          <label class="form-label">Tipo</label>
-          <select id="tipo" class="form-select">
-            <option value="EPP">EPP</option>
-            <option value="CONSUMIBLE">Consumible</option>
-          </select>
-        </div>
+      <div class="col-md-5">
+        <label>Descripción</label>
+        <select id="descripcion" class="form-select"></select>
+      </div>
 
-        <div class="col-md-5">
-          <label class="form-label">Descripción</label>
-          <select id="descripcion" class="form-select"></select>
-        </div>
+      <div class="col-md-2">
+        <label>Cantidad</label>
+        <input type="number" id="cantidad" class="form-control" value="1" min="1">
+      </div>
 
-        <div class="col-md-2">
-          <label class="form-label">Cantidad</label>
-          <input type="number" id="cantidad" class="form-control" min="1" value="1">
-        </div>
-
-        <div class="col-md-2 d-grid">
-          <button class="btn btn-primary" onclick="agregarItem()">
-            <i class="bi bi-plus-lg"></i>
-          </button>
-        </div>
-
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" onclick="agregarItem()">
+          <i class="bi bi-plus-lg"></i>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- ITEMS -->
-  <div class="card shadow-sm">
-    <div class="card-header">
-      <i class="bi bi-list-check"></i> Ítems Agregados
-    </div>
+  <div class="card p-3">
+    <h5><i class="bi bi-list-check"></i> Ítems Agregados</h5>
 
-    <div class="card-body p-0">
-      <table class="table table-striped mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Tipo</th>
-            <th>Descripción</th>
-            <th>Cantidad</th>
-            <th class="text-center">Acción</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-items">
-          <tr>
-            <td colspan="4" class="text-center text-muted">
-              No hay ítems agregados.
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+    <table class="table table-bordered mt-2">
+      <thead class="table-light">
+        <tr>
+          <th>Tipo</th>
+          <th>Descripción</th>
+          <th>Cantidad</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="tablaItems">
+        <tr><td colspan="4" class="text-center">No hay ítems agregados.</td></tr>
+      </tbody>
+    </table>
 
-  <div class="text-end mt-3">
-    <button class="btn btn-success">
-      <i class="bi bi-send-check"></i> Enviar Solicitud
-    </button>
+    <div class="text-end">
+      <button class="btn btn-success" onclick="enviarSolicitud()">
+        <i class="bi bi-send-check"></i> Enviar Solicitud
+      </button>
+    </div>
   </div>
 
 </div>
 
 <script>
-/* ==========================
-   CATÁLOGO (FRONTEND)
-   ========================== */
-
-const catalogo = {
-  EPP: [
-    "CASCO DE SEGURIDAD",
-    "LENTES DE SEGURIDAD",
-    "GUANTES DE NITRILO",
-    "ZAPATOS DE SEGURIDAD",
-    "PROTECTOR AUDITIVO"
-  ],
-  CONSUMIBLE: [
-    "CINTA AISLANTE",
-    "TRAPO INDUSTRIAL",
-    "ACEITE",
-    "GRASA",
-    "ABRAZADERAS"
-  ]
-};
-
 let items = [];
+let catalogo = { EPP: [], CONSUMIBLE: [] };
 
-const tipoSelect = document.getElementById("tipo");
-const descSelect = document.getElementById("descripcion");
-const tabla = document.getElementById("tabla-items");
+fetch("/catalogo")
+  .then(r => r.json())
+  .then(data => {
+    catalogo = data;
+    cargarCatalogo();
+  });
 
 function cargarCatalogo() {
-  descSelect.innerHTML = "";
-  catalogo[tipoSelect.value].forEach(item => {
-    const opt = document.createElement("option");
-    opt.value = item;
-    opt.textContent = item;
-    descSelect.appendChild(opt);
+  const tipo = document.getElementById("tipo").value;
+  const desc = document.getElementById("descripcion");
+  desc.innerHTML = "";
+
+  catalogo[tipo].forEach(d => {
+    let opt = document.createElement("option");
+    opt.value = d;
+    opt.textContent = d;
+    desc.appendChild(opt);
   });
 }
 
-tipoSelect.addEventListener("change", cargarCatalogo);
-cargarCatalogo();
-
-/* ==========================
-   AGREGAR / ELIMINAR
-   ========================== */
-
 function agregarItem() {
-  const tipo = tipoSelect.value;
-  const desc = descSelect.value;
-  const cant = cantidad.value;
-
-  if (!desc || cant <= 0) return;
+  const tipo = document.getElementById("tipo").value;
+  const desc = document.getElementById("descripcion").value;
+  const cant = document.getElementById("cantidad").value;
 
   items.push({ tipo, desc, cant });
   renderTabla();
 }
 
-function eliminarItem(index) {
-  items.splice(index, 1);
+function eliminarItem(i) {
+  items.splice(i, 1);
   renderTabla();
 }
 
 function renderTabla() {
-  tabla.innerHTML = "";
+  const tb = document.getElementById("tablaItems");
+  tb.innerHTML = "";
 
   if (items.length === 0) {
-    tabla.innerHTML = `
-      <tr>
-        <td colspan="4" class="text-center text-muted">
-          No hay ítems agregados.
-        </td>
-      </tr>`;
+    tb.innerHTML = `<tr><td colspan="4" class="text-center">No hay ítems agregados.</td></tr>`;
     return;
   }
 
   items.forEach((it, i) => {
-    tabla.innerHTML += `
+    tb.innerHTML += `
       <tr>
         <td>${it.tipo}</td>
         <td>${it.desc}</td>
         <td>${it.cant}</td>
-        <td class="text-center">
-          <button class="btn btn-sm btn-danger" onclick="eliminarItem(${i})">
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="eliminarItem(${i})">
             <i class="bi bi-trash"></i>
           </button>
         </td>
       </tr>`;
+  });
+}
+
+function enviarSolicitud() {
+  if (items.length === 0) {
+    alert("No hay ítems para enviar");
+    return;
+  }
+
+  fetch("/guardar_solicitud", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items })
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.ok) {
+      alert("Solicitud enviada correctamente");
+      items = [];
+      renderTabla();
+    }
   });
 }
 </script>
