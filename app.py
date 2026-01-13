@@ -29,16 +29,18 @@ def login():
                 return redirect("/solicitar")
 
         # -------- ALMACENERO --------
-        if "usuario" in request.form and "password" in request.form:
-            usuario = request.form["usuario"].strip().upper()
-            password = request.form["password"].strip()
+if "usuario" in request.form and "password" in request.form:
+    usuario = request.form["usuario"].strip().upper()
+    password = request.form["password"].strip()
 
-            # credenciales simples (luego mejoramos)
-            if usuario == "EDWIN" and password == "1234":
-                session.clear()
-                session["rol"] = "almacenero"
-                session["usuario"] = usuario
-                return redirect("/bandeja")
+    if (
+        (usuario == "EDWIN" and password == "6982") or
+        (usuario == "EDGAR GARCIA" and password == "1234")
+    ):
+        session.clear()
+        session["rol"] = "almacenero"
+        session["usuario"] = usuario
+        return redirect("/bandeja")
 
     return render_template("login.html")
 
@@ -89,8 +91,29 @@ def solicitar():
 def bandeja():
     if session.get("rol") != "almacenero":
         return redirect("/login")
-    return "<h2>Bandeja del almacenero (próximo paso)</h2>"
 
+    return render_template(
+        "bandeja.html",
+        usuario=session.get("usuario")
+    )
+
+# ======================
+# CATALOGO DINAMICO
+# ======================
+CATALOGO = {
+    "EPP": [
+        {"codigo": "EPP001", "descripcion": "CASCO SEGURIDAD"},
+        {"codigo": "EPP002", "descripcion": "LENTES SEGURIDAD"}
+    ],
+    "CONSUMIBLE": [
+        {"codigo": "CON001", "descripcion": "GUANTES NITRILO"},
+        {"codigo": "CON002", "descripcion": "CINTA AISLANTE"}
+    ]
+}
+
+@app.route("/catalogo/<tipo>")
+def catalogo(tipo):
+    return CATALOGO.get(tipo.upper(), [])
 
 # =============================
 # LOGOUT
