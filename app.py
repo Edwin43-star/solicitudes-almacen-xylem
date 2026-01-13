@@ -13,7 +13,6 @@ def root():
 # =============================
 # LOGIN
 # =============================
-@app.route("/", methods=["GET"])
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
@@ -29,24 +28,24 @@ def login():
                 return redirect("/solicitar")
 
         # -------- ALMACENERO --------
-if "usuario" in request.form and "password" in request.form:
-    usuario = request.form["usuario"].strip().upper()
-    password = request.form["password"].strip()
+        if "usuario" in request.form and "password" in request.form:
+            usuario = request.form["usuario"].strip().upper()
+            password = request.form["password"].strip()
 
-    if (
-        (usuario == "EDWIN" and password == "6982") or
-        (usuario == "EDGAR GARCIA" and password == "1234")
-    ):
-        session.clear()
-        session["rol"] = "almacenero"
-        session["usuario"] = usuario
-        return redirect("/bandeja")
+            if (
+                (usuario == "EDWIN" and password == "6982") or
+                (usuario == "EDGAR GARCIA" and password == "1234")
+            ):
+                session.clear()
+                session["rol"] = "almacenero"
+                session["usuario"] = usuario
+                return redirect("/bandeja")
 
     return render_template("login.html")
 
 
 # =============================
-# INICIO (solo almacenero)
+# INICIO (almacenero)
 # =============================
 @app.route("/inicio")
 def inicio():
@@ -56,14 +55,13 @@ def inicio():
 
 
 # =============================
-# SOLICITUD (personal)
+# SOLICITAR (personal)
 # =============================
 @app.route("/solicitar")
 def solicitar():
     if session.get("rol") != "personal":
         return redirect("/login")
 
-    # catálogo simulado (luego Excel / Sheets)
     catalogo = {
         "EPP": [
             "CASCO DE SEGURIDAD",
@@ -97,9 +95,10 @@ def bandeja():
         usuario=session.get("usuario")
     )
 
-# ======================
-# CATALOGO DINAMICO
-# ======================
+
+# =============================
+# CATALOGO DINAMICO (API)
+# =============================
 CATALOGO = {
     "EPP": [
         {"codigo": "EPP001", "descripcion": "CASCO SEGURIDAD"},
@@ -114,6 +113,7 @@ CATALOGO = {
 @app.route("/catalogo/<tipo>")
 def catalogo(tipo):
     return CATALOGO.get(tipo.upper(), [])
+
 
 # =============================
 # LOGOUT
