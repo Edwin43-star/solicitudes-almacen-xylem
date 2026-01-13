@@ -1,24 +1,36 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, jsonify
+from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 app.secret_key = "xylem-secret-key"
 
-# ===============================
-# ROOT
-# ===============================
+# ==============================
+# GOOGLE SHEETS
+# ==============================
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_file(
+    "credenciales.json", scopes=SCOPES
+)
+gc = gspread.authorize(creds)
+
+SHEET_NAME = "Solicitudes_Almacen_App"
+ws_solicitudes = gc.open(SHEET_NAME).worksheet("Solicitudes")
+ws_catalogo = gc.open(SHEET_NAME).worksheet("Catalogo")
+
+# ==============================
+# LOGIN
+# ==============================
 @app.route("/")
 def root():
     return redirect("/login")
 
-# =============================
-# LOGIN
-# =============================
 @app.route("/login", methods=["GET", "POST"])
 def login():
-
     if request.method == "POST":
 
-        # -------- PERSONAL --------
+        # ---- PERSONAL ----
         if "nombre" in request.form:
             nombre = request.form["nombre"].strip()
             if nombre:
@@ -27,15 +39,17 @@ def login():
                 session["usuario"] = nombre.upper()
                 return redirect("/solicitar")
 
-        # -------- ALMACENERO --------
+        # ---- ALMACENEROS ----
         if "usuario" in request.form and "password" in request.form:
             usuario = request.form["usuario"].strip().upper()
             password = request.form["password"].strip()
 
-            if (
-                (usuario == "EDWIN" and password == "6982") or
-                (usuario == "EDGAR GARCIA" and password == "1234")
-            ):
+            almaceneros = {
+                "EDWIN ROMERO": "6982",
+                "EDGAR GARCIA": "1234"
+            }
+
+            if usuario in almaceneros and almaceneros[usuario] == password:
                 session.clear()
                 session["rol"] = "almacenero"
                 session["usuario"] = usuario
@@ -43,85 +57,67 @@ def login():
 
     return render_template("login.html")
 
-
-# =============================
-# INICIO (almacenero)
-# =============================
-@app.route("/inicio")
-def inicio():
-    if session.get("rol") != "almacenero":
-        return redirect("/login")
-    return render_template("inicio.html")
-
-
-# =============================
-# SOLICITAR (personal)
-# =============================
-@app.route("/solicitar")
-def solicitar():
-    if session.get("rol") != "personal":
-        return redirect("/login")
-
-    catalogo = {
-        "EPP": [
-            "CASCO DE SEGURIDAD",
-            "GUANTES NITRILO",
-            "LENTES DE SEGURIDAD"
-        ],
-        "CONSUMIBLE": [
-            "CINTA AISLANTE",
-            "TRAPO INDUSTRIAL",
-            "ACEITE"
-        ]
-    }
-
-    return render_template(
-        "solicitar.html",
-        usuario=session.get("usuario"),
-        catalogo=catalogo
-    )
-
-
-# =============================
-# BANDEJA (almacenero)
-# =============================
-@app.route("/bandeja")
-def bandeja():
-    if session.get("rol") != "almacenero":
-        return redirect("/login")
-
-    return render_template(
-        "bandeja.html",
-        usuario=session.get("usuario")
-    )
-
-
-# =============================
-# CATALOGO DINAMICO (API)
-# =============================
-CATALOGO = {
-    "EPP": [
-        {"codigo": "EPP001", "descripcion": "CASCO SEGURIDAD"},
-        {"codigo": "EPP002", "descripcion": "LENTES SEGURIDAD"}
-    ],
-    "CONSUMIBLE": [
-        {"codigo": "CON001", "descripcion": "GUANTES NITRILO"},
-        {"codigo": "CON002", "descripcion": "CINTA AISLANTE"}
-    ]
-}
-
-@app.route("/catalogo/<tipo>")
-def catalogo(tipo):
-    return CATALOGO.get(tipo.upper(), [])
-
-
-# =============================
-# LOGOUT
-# =============================
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
+
+# ==============================
+# SOLICITAR
+# ==============================
+@app.route("/solicitar")
+def solicitar():
+    if "usuario" not in session or session["rol"] != "personal":
+        return redirect("/login")
+    return render_template("solicitar.html")
+
+# ==============================
+# CATÁLOGO DINÁMICO
+# ==============================
+@app.route("/catalogo")
+def catalogo():
+    rows = ws_catalogo.get_all_records()
+    data = {"EPP": [], "CONSUMIBLE": []}
+
+    for r in rows:
+        data[r["TIPO"].upper()].append(r["DESCRIPCION"])
+
+    return jsonify(data)
+
+# ==============================
+# GUARDAR SOLICITUD
+# ==============================
+@app.route("/guardar_solicitud", methods=["POST"])
+def guardar_solicitud():
+    if "usuario" not in session:
+        return jsonify(ok=False), 401
+
+    data = request.json
+    usuario = session["usuario"]
+    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    for item in data["items"]:
+        ws_solicitudes.append_row([
+            fecha,
+            usuario,
+            item["tipo"],
+            item["desc"],
+            item["cant"],
+            "PENDIENTE"
+        ])
+
+    return jsonify(ok=True)
+
+# ==============================
+# BANDEJA ALMACENERO
+# ==============================
+@app.route("/bandeja")
+def bandeja():
+    if "usuario" not in session or session["rol"] != "almacenero":
+        return redirect("/login")
+
+    rows = ws_solicitudes.get_all_records()
+    return render_template("bandeja.html", solicitudes=rows)
 
 
 if __name__ == "__main__":
