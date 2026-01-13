@@ -2,22 +2,36 @@ from flask import Flask, render_template, request, redirect, session, url_for, j
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
+import os
+import json
 
 app = Flask(__name__)
 app.secret_key = "xylem-secret-key"
 
-# ==============================
+# ===============================
 # GOOGLE SHEETS
-# ==============================
+# ===============================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-creds = Credentials.from_service_account_file(
-    "credenciales.json", scopes=SCOPES
-)
-gc = gspread.authorize(creds)
 
-SHEET_NAME = "Solicitudes_Almacen_App"
-ws_solicitudes = gc.open(SHEET_NAME).worksheet("Solicitudes")
-ws_catalogo = gc.open(SHEET_NAME).worksheet("Catalogo")
+google_creds = os.environ.get("GOOGLE_CREDENTIALS")
+if not google_creds:
+    raise RuntimeError("❌ GOOGLE_CREDENTIALS no está configurada en Render")
+
+creds_dict = json.loads(google_creds)
+
+creds = Credentials.from_service_account_info(
+    creds_dict, scopes=SCOPES
+)
+
+try:
+    gc = gspread.authorize(creds)
+    SHEET_NAME = "Solicitudes_Almacen_App"
+    ws_solicitudes = gc.open(SHEET_NAME).worksheet("Solicitudes")
+    ws_catalogo = gc.open(SHEET_NAME).worksheet("Catalogo")
+except Exception as e:
+    print("❌ Error Google Sheets:", e)
+    ws_solicitudes = None
+    ws_catalogo = None
 
 # ==============================
 # LOGIN
