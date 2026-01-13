@@ -1,20 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Bandeja de Solicitudes</h2>
 
-<table border="1" cellpadding="5">
-<tr>
-<th>Fecha</th><th>Código</th><th>Nombre</th><th>Producto</th><th>Cantidad</th><th>Estado</th>
-</tr>
-{% for s in solicitudes %}
-<tr>
-<td>{{ s.FECHA }}</td>
-<td>{{ s.CODIGO }}</td>
-<td>{{ s.NOMBRE }}</td>
-<td>{{ s.DESCRIPCION }}</td>
-<td>{{ s.CANTIDAD }}</td>
-<td>{{ s.ESTADO }}</td>
-</tr>
-{% endfor %}
-</table>
+<div class="container mt-4">
+  <h3>📥 Bandeja de Solicitudes</h3>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Usuario</th>
+        <th>Tipo</th>
+        <th>Producto</th>
+        <th>Cant.</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in solicitudes %}
+      <tr>
+        <td>{{ s.Fecha }}</td>
+        <td>{{ s.Usuario }}</td>
+        <td>{{ s.Tipo }}</td>
+        <td>{{ s.Producto }}</td>
+        <td>{{ s.Cantidad }}</td>
+        <td><span class="badge bg-warning">{{ s.Estado }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 {% endblock %}

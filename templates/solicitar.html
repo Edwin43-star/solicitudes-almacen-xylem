@@ -1,146 +1,96 @@
 {% extends "base.html" %}
-{% block title %}Nueva Solicitud{% endblock %}
-
 {% block content %}
+
 <div class="container mt-4">
+  <h3>📦 Nueva Solicitud</h3>
 
-  <h3><i class="bi bi-clipboard-plus"></i> Nueva Solicitud</h3>
+  <div class="row g-2">
+    <div class="col-md-3">
+      <select id="tipo" class="form-select">
+        <option>EPP</option>
+        <option>CONSUMIBLE</option>
+        <option>EQUIPO</option>
+        <option>HERRAMIENTA</option>
+      </select>
+    </div>
 
-  <div class="card p-3 mb-3">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-3">
-        <label>Tipo</label>
-        <select id="tipo" class="form-select" onchange="cargarCatalogo()">
-          <option value="EPP">EPP</option>
-          <option value="CONSUMIBLE">Consumible</option>
-        </select>
-      </div>
+    <div class="col-md-5">
+      <select id="descripcion" class="form-select"></select>
+    </div>
 
-      <div class="col-md-5">
-        <label>Descripción</label>
-        <select id="descripcion" class="form-select"></select>
-      </div>
+    <div class="col-md-2">
+      <input id="cantidad" type="number" value="1" class="form-control">
+    </div>
 
-      <div class="col-md-2">
-        <label>Cantidad</label>
-        <input type="number" id="cantidad" class="form-control" value="1" min="1">
-      </div>
-
-      <div class="col-md-2">
-        <button class="btn btn-primary w-100" onclick="agregarItem()">
-          <i class="bi bi-plus-lg"></i>
-        </button>
-      </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100" onclick="agregar()">+</button>
     </div>
   </div>
 
-  <div class="card p-3">
-    <h5><i class="bi bi-list-check"></i> Ítems Agregados</h5>
+  <hr>
 
-    <table class="table table-bordered mt-2">
-      <thead class="table-light">
-        <tr>
-          <th>Tipo</th>
-          <th>Descripción</th>
-          <th>Cantidad</th>
-          <th>Acción</th>
-        </tr>
-      </thead>
-      <tbody id="tablaItems">
-        <tr><td colspan="4" class="text-center">No hay ítems agregados.</td></tr>
-      </tbody>
-    </table>
+  <table class="table mt-3">
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Descripción</th>
+        <th>Cantidad</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="lista"></tbody>
+  </table>
 
-    <div class="text-end">
-      <button class="btn btn-success" onclick="enviarSolicitud()">
-        <i class="bi bi-send-check"></i> Enviar Solicitud
-      </button>
-    </div>
-  </div>
-
+  <button class="btn btn-success" onclick="enviar()">Enviar Solicitud</button>
 </div>
 
 <script>
-let items = [];
-let catalogo = { EPP: [], CONSUMIBLE: [] };
+let items = []
 
-fetch("/catalogo")
-  .then(r => r.json())
-  .then(data => {
-    catalogo = data;
-    cargarCatalogo();
-  });
-
-function cargarCatalogo() {
-  const tipo = document.getElementById("tipo").value;
-  const desc = document.getElementById("descripcion");
-  desc.innerHTML = "";
-
-  catalogo[tipo].forEach(d => {
-    let opt = document.createElement("option");
-    opt.value = d;
-    opt.textContent = d;
-    desc.appendChild(opt);
-  });
+async function cargar() {
+  let tipo = document.getElementById("tipo").value
+  let res = await fetch(`/api/catalogo/${tipo}`)
+  let data = await res.json()
+  let sel = document.getElementById("descripcion")
+  sel.innerHTML = ""
+  data.forEach(d => sel.innerHTML += `<option>${d}</option>`)
 }
 
-function agregarItem() {
-  const tipo = document.getElementById("tipo").value;
-  const desc = document.getElementById("descripcion").value;
-  const cant = document.getElementById("cantidad").value;
+document.getElementById("tipo").onchange = cargar
+window.onload = cargar
 
-  items.push({ tipo, desc, cant });
-  renderTabla();
-}
-
-function eliminarItem(i) {
-  items.splice(i, 1);
-  renderTabla();
-}
-
-function renderTabla() {
-  const tb = document.getElementById("tablaItems");
-  tb.innerHTML = "";
-
-  if (items.length === 0) {
-    tb.innerHTML = `<tr><td colspan="4" class="text-center">No hay ítems agregados.</td></tr>`;
-    return;
-  }
-
-  items.forEach((it, i) => {
-    tb.innerHTML += `
-      <tr>
-        <td>${it.tipo}</td>
-        <td>${it.desc}</td>
-        <td>${it.cant}</td>
-        <td>
-          <button class="btn btn-danger btn-sm" onclick="eliminarItem(${i})">
-            <i class="bi bi-trash"></i>
-          </button>
-        </td>
-      </tr>`;
-  });
-}
-
-function enviarSolicitud() {
-  if (items.length === 0) {
-    alert("No hay ítems para enviar");
-    return;
-  }
-
-  fetch("/guardar_solicitud", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items })
+function agregar() {
+  items.push({
+    tipo: tipo.value,
+    descripcion: descripcion.value,
+    cantidad: cantidad.value
   })
-  .then(r => r.json())
-  .then(resp => {
-    if (resp.ok) {
-      alert("Solicitud enviada correctamente");
-      items = [];
-      renderTabla();
-    }
-  });
+  render()
+}
+
+function render() {
+  lista.innerHTML = ""
+  items.forEach((i, idx) => {
+    lista.innerHTML += `
+      <tr>
+        <td>${i.tipo}</td>
+        <td>${i.descripcion}</td>
+        <td>${i.cantidad}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="items.splice(${idx},1);render()">🗑</button></td>
+      </tr>`
+  })
+}
+
+async function enviar() {
+  await fetch("/enviar_solicitud", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({items})
+  })
+  alert("Solicitud enviada")
+  items = []
+  render()
 }
 </script>
+
 {% endblock %}
