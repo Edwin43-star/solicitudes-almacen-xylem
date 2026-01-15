@@ -11,7 +11,7 @@ app.secret_key = "xylem-secret-key"
 # GOOGLE SHEETS
 # ============================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALIALS"))
+creds_dict = json.loads(os.environ.get("GOOGLE_CREDENTIALS"))
 creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 gc = gspread.authorize(creds)
 
