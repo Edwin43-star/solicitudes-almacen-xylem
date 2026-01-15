@@ -1,43 +1,35 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Login - Solicitudes</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-  <div class="container py-5">
-    <div class="row justify-content-center">
-      <div class="col-12 col-md-6 col-lg-5">
-        <div class="card shadow-sm">
-          <div class="card-body p-4">
-            <h4 class="mb-3">Ingreso</h4>
+{% extends "base.html" %}
+{% block content %}
 
-            {% if error %}
-              <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-body p-4">
+        <h4 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2"></i>Ingreso</h4>
+        <p class="text-muted mb-4">Sistema de Solicitudes de Almacén</p>
 
-            <form method="post">
-              <div class="mb-3">
-                <label class="form-label">Usuario</label>
-                <input class="form-control" name="usuario" placeholder="Ej: 1017 (personal) / EDWIN (almacenero)" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Clave (solo almacenero)</label>
-                <input class="form-control" name="clave" type="password" placeholder="Opcional para personal">
-              </div>
-              <button class="btn btn-primary w-100">Ingresar</button>
-            </form>
-
-            <div class="text-muted mt-3" style="font-size:.9rem">
-              Personal: ingresa tu <b>CÓDIGO</b> (columna CODIGO). <br/>
-              Almacenero: ingresa <b>USUARIO</b> y <b>CLAVE</b>.
+        <form method="POST" action="{{ url_for('login') }}">
+          <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <input name="usuario" class="form-control" placeholder="Ej: EDWIN o MILTON BLAS PEÑA" required>
+            <div class="form-text">
+              Almaceneros: <b>EDWIN</b>, <b>EDGAR</b> (con clave). Usuarios: nombre completo (sin clave).
             </div>
           </div>
-        </div>
+
+          <div class="mb-3">
+            <label class="form-label">Clave (solo almaceneros)</label>
+            <input name="clave" type="password" class="form-control" placeholder="Clave">
+          </div>
+
+          <button class="btn btn-primary w-100 py-2">
+            <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar
+          </button>
+        </form>
+
       </div>
     </div>
   </div>
-</body>
-</html>
+</div>
+
+{% endblock %}
