@@ -1,272 +1,208 @@
-{% extends "base.html" %}
-{% block title %}Nueva Solicitud{% endblock %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nueva Solicitud</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-{% block content %}
-<div class="container mt-4">
+  <style>
+    .topbar { background:#0d6efd; color:#fff; }
+    .topbar .brand { font-weight:700; font-size:1.4rem; }
+  </style>
+</head>
+<body class="bg-light">
 
-  <h3 class="mb-4">
-    <i class="bi bi-box-seam"></i> Nueva Solicitud
-  </h3>
-
-  <!-- FORMULARIO -->
-  <div class="card p-3 mb-4 shadow-sm">
-    <div class="row g-2 align-items-end">
-
-      <div class="col-md-3">
-        <label class="form-label">Tipo</label>
-        <select id="tipo" class="form-select">
-          <option value="EPP">EPP</option>
-          <option value="CONSUMIBLE">CONSUMIBLE</option>
-          <option value="EQUIPO">EQUIPO</option>
-          <option value="HERRAMIENTA">HERRAMIENTA</option>
-        </select>
+  <div class="topbar py-3">
+    <div class="container d-flex justify-content-between align-items-center">
+      <div class="brand">Xylem</div>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-light text-dark">{{ user_name }}</span>
+        <a class="btn btn-outline-light btn-sm" href="/logout">Salir</a>
       </div>
-
-      <div class="col-md-5">
-        <label class="form-label">Descripción</label>
-        <select id="descripcion" class="form-select">
-          <option value="">Seleccione...</option>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Cantidad</label>
-        <input type="number" id="cantidad" class="form-control" value="1" min="1">
-      </div>
-
-      <div class="col-md-2">
-        <button class="btn btn-primary w-100" onclick="agregarItem()">
-          <i class="bi bi-plus-lg"></i>
-        </button>
-      </div>
-
     </div>
   </div>
 
-  <!-- TABLA ITEMS -->
-  <div class="card shadow-sm">
-    <div class="card-header">
-      <i class="bi bi-list-check"></i> Ítems Agregados
+  <div class="container py-4">
+    <h2 class="mb-4">Nueva Solicitud</h2>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Tipo</label>
+            <select id="tipo" class="form-select">
+              <option value="EPP">EPP</option>
+              <option value="CONSUMIBLE">CONSUMIBLE</option>
+              <option value="EQUIPO">EQUIPO</option>
+              <option value="HERRAMIENTA">HERRAMIENTA</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-5">
+            <label class="form-label">Descripción</label>
+            <select id="descripcion" class="form-select">
+              <option value="">Cargando catálogo...</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-2">
+            <label class="form-label">Cantidad</label>
+            <input id="cantidad" type="number" class="form-control" value="1" min="1">
+          </div>
+
+          <div class="col-12 col-md-2 d-grid">
+            <button id="btnAdd" class="btn btn-primary">+</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div class="card-body p-0">
-      <table class="table table-striped mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Tipo</th>
-            <th>Descripción</th>
-            <th class="text-center">Cantidad</th>
-            <th class="text-center">Acción</th>
-          </tr>
-        </thead>
-        <tbody id="tablaItems">
-          <tr>
-            <td colspan="4" class="text-center text-muted">
-              No hay ítems agregados.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">Ítems Agregados</h5>
+
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th style="width:140px;">Cantidad</th>
+                <th style="width:120px;">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="4" class="text-center text-muted">No hay ítems agregados.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-end">
+          <button id="btnEnviar" class="btn btn-success">Enviar Solicitud</button>
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- ENVIAR -->
-  <div class="text-end mt-3">
-    <button class="btn btn-success" onclick="enviarSolicitud()">
-      <i class="bi bi-send"></i> Enviar Solicitud
-    </button>
-  </div>
-
-</div>
 
 <script>
-let items = [];
-let catalogo = {};
+  let catalogo = [];
+  let items = [];
 
-// ==============================
-// CARGAR CATÁLOGO DESDE BACKEND
-// ==============================
-fetch("/api/catalogo")
-  .then(r => r.json())
-  .then(data => {
-    catalogo = data;
-    cargarDescripciones();
-  });
+  const tipoEl = document.getElementById("tipo");
+  const descEl = document.getElementById("descripcion");
+  const cantEl = document.getElementById("cantidad");
+  const tbody = document.getElementById("tbody");
 
-document.getElementById("tipo").addEventListener("change", cargarDescripciones);
+  function renderTabla() {
+    tbody.innerHTML = "";
 
-function cargarDescripciones() {
-  const tipo = document.getElementById("tipo").value;
-  const sel = document.getElementById("descripcion");
-  sel.innerHTML = '<option value="">Seleccione...</option>';
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No hay ítems agregados.</td></tr>`;
+      return;
+    }
 
-  if (catalogo[tipo]) {
-    catalogo[tipo].forEach(d => {
-      const opt = document.createElement("option");
-      opt.value = d;
-      opt.textContent = d;
-      sel.appendChild(opt);
-    });
-  }
-}
-
-// ==============================
-// AGREGAR ITEM
-// ==============================
-function agregarItem() {
-  const tipo = document.getElementById("tipo").value;
-  const desc = document.getElementById("descripcion").value;
-  const cant = document.getElementById("cantidad").value;
-
-  if (!desc || cant <= 0) {
-    alert("Complete descripción y cantidad");
-    return;
-  }
-
-  items.push({
-    tipo: tipo,
-    descripcion: desc,
-    cantidad: cant
-  });
-
-  renderTabla();
-}
-
-// ==============================
-// ELIMINAR ITEM
-// ==============================
-function eliminarItem(index) {
-  items.splice(index, 1);
-  renderTabla();
-}
-
-// ==============================
-// RENDER TABLA
-// ==============================
-function renderTabla() {
-  const tbody = document.getElementById("tablaItems");
-  tbody.innerHTML = "";
-
-  if (items.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="4" class="text-center text-muted">
-          No hay ítems agregados.
-        </td>
-      </tr>`;
-    return;
-  }
-
-  items.forEach((it, i) => {
-    tbody.innerHTML += `
-      <tr>
+    items.forEach((it, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
         <td>${it.tipo}</td>
         <td>${it.descripcion}</td>
         <td class="text-center">${it.cantidad}</td>
         <td class="text-center">
-          <button class="btn btn-sm btn-danger" onclick="eliminarItem(${i})">
-            <i class="bi bi-trash"></i>
-          </button>
+          <button class="btn btn-danger btn-sm" data-idx="${idx}">🗑</button>
         </td>
-      </tr>`;
-  });
-}
+      `;
+      tbody.appendChild(tr);
+    });
 
-// ==============================
-// ENVIAR SOLICITUD
-// ==============================
-function enviarSolicitud() {
-  if (items.length === 0) {
-    alert("No hay ítems para enviar");
-    return;
+    tbody.querySelectorAll("button[data-idx]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = parseInt(btn.getAttribute("data-idx"));
+        items.splice(i, 1);
+        renderTabla();
+      });
+    });
   }
 
-  fetch("/enviar_solicitud", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items: items })
-  })
-  .then(r => r.json())
-  .then(resp => {
-    alert("Solicitud enviada correctamente");
-    items = [];
-    renderTabla();
-  });
-}
-</script>
-{% endblock %}
+  function cargarOpciones() {
+    const tipo = tipoEl.value;
+    const filtrados = catalogo.filter(x => (x.tipo || "").toUpperCase() === tipo);
 
-<script>
-let catalogo = [];
-let items = [];
+    descEl.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "Seleccione...";
+    descEl.appendChild(opt0);
 
-async function cargarCatalogo() {
+    filtrados.forEach(x => {
+      const opt = document.createElement("option");
+      opt.value = x.descripcion;
+      opt.textContent = x.descripcion;
+      descEl.appendChild(opt);
+    });
+
+    if (filtrados.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No hay ítems en catálogo para este tipo";
+      descEl.appendChild(opt);
+    }
+  }
+
+  async function cargarCatalogo() {
     const res = await fetch("/api/catalogo");
-    catalogo = await res.json();
-}
+    const data = await res.json();
 
-document.getElementById("tipo").addEventListener("change", function () {
-    const tipo = this.value;
-    const sel = document.getElementById("descripcion");
-    sel.innerHTML = '<option value="">Seleccione...</option>';
+    if (!data.ok) {
+      descEl.innerHTML = `<option value="">Error cargando catálogo: ${data.error}</option>`;
+      return;
+    }
 
-    catalogo
-        .filter(i => i.Tipo.toUpperCase() === tipo.toUpperCase())
-        .forEach(i => {
-            const opt = document.createElement("option");
-            opt.value = i.Descripcion;
-            opt.textContent = i.Descripcion;
-            sel.appendChild(opt);
-        });
-});
+    catalogo = data.items || [];
+    cargarOpciones();
+  }
 
-document.getElementById("btnAgregar").addEventListener("click", () => {
-    const tipo = tipoSelect.value;
-    const descripcion = descripcionSelect.value;
-    const cantidad = cantidadInput.value;
+  document.getElementById("btnAdd").addEventListener("click", () => {
+    const tipo = tipoEl.value;
+    const descripcion = descEl.value;
+    let cantidad = parseInt(cantEl.value || "1");
 
-    if (!descripcion) return alert("Seleccione un producto");
+    if (!descripcion) {
+      alert("Seleccione un ítem del catálogo.");
+      return;
+    }
+    if (!cantidad || cantidad < 1) cantidad = 1;
 
     items.push({ tipo, descripcion, cantidad });
-    renderItems();
-});
+    renderTabla();
+  });
 
-function renderItems() {
-    const tbody = document.getElementById("tablaItems");
-    tbody.innerHTML = "";
+  document.getElementById("btnEnviar").addEventListener("click", async () => {
+    if (items.length === 0) {
+      alert("No hay ítems para enviar");
+      return;
+    }
 
-    items.forEach((i, idx) => {
-        tbody.innerHTML += `
-        <tr>
-            <td>${i.tipo}</td>
-            <td>${i.descripcion}</td>
-            <td>${i.cantidad}</td>
-            <td>
-                <button class="btn btn-danger btn-sm" onclick="eliminar(${idx})">
-                    🗑
-                </button>
-            </td>
-        </tr>`;
-    });
-}
-
-function eliminar(i) {
-    items.splice(i, 1);
-    renderItems();
-}
-
-document.getElementById("btnEnviar").addEventListener("click", async () => {
-    if (items.length === 0) return alert("No hay items para enviar");
-
-    await fetch("/enviar_solicitud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items })
+    const res = await fetch("/api/guardar_solicitud", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items })
     });
 
-    alert("Solicitud enviada");
-    location.reload();
-});
+    const data = await res.json();
+    if (!data.ok) {
+      alert("Error: " + data.error);
+      return;
+    }
 
-cargarCatalogo();
+    items = [];
+    renderTabla();
+    alert("Solicitud enviada ✅");
+  });
+
+  tipoEl.addEventListener("change", cargarOpciones);
+  cargarCatalogo();
 </script>
+
+</body>
+</html>
