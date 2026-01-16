@@ -1,10 +1,11 @@
 import os, json
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, session, flash
 import gspread
 from google.oauth2.service_account import Credentials
 
 # =========================
-# CONFIG
+# APP CONFIG
 # =========================
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -23,12 +24,12 @@ if not GOOGLE_CREDENTIALS:
 # =========================
 creds_dict = json.loads(GOOGLE_CREDENTIALS)
 
-scopes = [
+SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
 gc = gspread.authorize(creds)
 
 sh = gc.open_by_key(SPREADSHEET_ID)
@@ -41,23 +42,28 @@ ws_solicitudes = sh.worksheet("Solicitudes")
 # RUTAS
 # =========================
 
+@app.route("/")
+def index():
+    return redirect("/login")
+
+# ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         usuario = request.form["usuario"].strip().upper()
         clave = request.form.get("clave", "").strip()
 
-        almaceneros = ws_almaceneros.get_all_records()
-        for a in almaceneros:
+        # ALMACENEROS
+        for a in ws_almaceneros.get_all_records():
             if a["USUARIO"] == usuario and a["CLAVE"] == clave and a["ACTIVO"] == "SI":
-                session["usuario"] = usuario
+                session["usuario"] = a["NOMBRE"]
                 session["rol"] = "ALMACENERO"
                 return redirect("/bandeja")
 
-        usuarios = ws_usuarios.get_all_records()
-        for u in usuarios:
+        # USUARIOS
+        for u in ws_usuarios.get_all_records():
             if u["NOMBRE"].upper() == usuario and u["ACTIVO"] == "SI":
-                session["usuario"] = usuario
+                session["usuario"] = u["NOMBRE"]
                 session["rol"] = "USUARIO"
                 return redirect("/solicitar")
 
@@ -65,6 +71,7 @@ def login():
 
     return render_template("login.html")
 
+# ---------- SOLICITAR ----------
 @app.route("/solicitar")
 def solicitar():
     if "usuario" not in session:
@@ -73,13 +80,14 @@ def solicitar():
     catalogo = ws_catalogo.get_all_records()
     return render_template("solicitar.html", catalogo=catalogo)
 
+# ---------- GUARDAR ----------
 @app.route("/guardar", methods=["POST"])
 def guardar():
     if "usuario" not in session:
         return redirect("/login")
 
     ws_solicitudes.append_row([
-        request.form["fecha"],
+        datetime.now().strftime("%d/%m/%Y %H:%M"),
         session["usuario"],
         request.form["tipo"],
         request.form["descripcion"],
@@ -87,8 +95,10 @@ def guardar():
         "PENDIENTE"
     ])
 
+    flash("Solicitud enviada correctamente")
     return redirect("/solicitar")
 
+# ---------- BANDEJA ----------
 @app.route("/bandeja")
 def bandeja():
     if session.get("rol") != "ALMACENERO":
@@ -97,13 +107,14 @@ def bandeja():
     solicitudes = ws_solicitudes.get_all_records()
     return render_template("bandeja.html", solicitudes=solicitudes)
 
+# ---------- LOGOUT ----------
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
 
 # =========================
-# ENTRYPOINT
+# MAIN
 # =========================
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
