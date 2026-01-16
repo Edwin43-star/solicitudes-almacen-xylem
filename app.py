@@ -51,11 +51,23 @@ def login():
 
     return render_template("login.html")
 
+@app.route("/bandeja")
+def bandeja():
+    if "nombre" not in session or session.get("rol") != "ALMACEN":
+        return redirect(url_for("login"))
+
+    return render_template("bandeja.html")
 
 @app.route("/inicio")
 def inicio():
     if "nombre" not in session:
         return redirect(url_for("login"))
+
+    # 🔑 ALMACENERO → BANDEJA
+    if session.get("rol") == "ALMACEN":
+        return redirect(url_for("bandeja"))
+
+    # 👷 PERSONAL → INICIO NORMAL
     return render_template("inicio.html")
 
 
@@ -85,3 +97,30 @@ def guardar_solicitud():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+@app.route("/api/catalogo")
+def api_catalogo():
+    tipo = request.args.get("tipo", "").upper()
+
+    # 🔹 Catálogo temporal (luego lo conectamos a Excel)
+    catalogo = {
+        "EPP": [
+            {"descripcion": "Casco de seguridad", "stock": 25},
+            {"descripcion": "Guantes de nitrilo", "stock": 100},
+            {"descripcion": "Lentes de seguridad", "stock": 40},
+        ],
+        "CONSUMIBLE": [
+            {"descripcion": "Cinta aislante", "stock": 60},
+            {"descripcion": "Trapo industrial", "stock": 80},
+        ],
+        "EQUIPO": [
+            {"descripcion": "Multímetro", "stock": 5},
+        ],
+        "HERRAMIENTA": [
+            {"descripcion": "Llave francesa", "stock": 12},
+        ]
+    }
+
+    return {
+        "items": catalogo.get(tipo, [])
+    }
