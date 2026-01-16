@@ -2,28 +2,48 @@
 {% block content %}
 
 <div class="row justify-content-center">
-  <div class="col-12 col-md-6 col-lg-4">
-    <div class="card shadow-sm border-0 rounded-4">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm border-0">
       <div class="card-body p-4">
-        <h4 class="fw-bold mb-1"><i class="bi bi-shield-lock me-2"></i>Ingreso</h4>
-        <p class="text-muted mb-4">Sistema de Solicitudes de Almacén</p>
 
-        <form method="POST" action="{{ url_for('login') }}">
+        <h4 class="mb-1">Ingreso</h4>
+        <p class="text-muted mb-4">Personal: solo escribe tu <b>Nombre y Apellidos</b>. <br>Almacenero: ingresa con tu contraseña.</p>
+
+        {% if error %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('login') }}">
           <div class="mb-3">
-            <label class="form-label">Usuario</label>
-            <input name="usuario" class="form-control" placeholder="Ej: EDWIN o MILTON BLAS PEÑA" required>
-            <div class="form-text">
-              Almaceneros: <b>EDWIN</b>, <b>EDGAR</b> (con clave). Usuarios: nombre completo (sin clave).
-            </div>
+            <label class="form-label">Personal (código o DNI)</label>
+            <input type="text" class="form-control" name="codigo_personal" placeholder="Ej: 1001" autocomplete="off">
+            <div class="form-text">Si eres personal, puedes ingresar solo con tu código/DNI.</div>
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Clave (solo almaceneros)</label>
-            <input name="clave" type="password" class="form-control" placeholder="Clave">
+            <label class="form-label">Nombres y Apellidos</label>
+            <input type="text" class="form-control" name="nombre_personal" placeholder="Ej: Juan Pérez" autocomplete="off">
+            <div class="form-text">Si tu código no existe, puedes escribir tu nombre completo.</div>
           </div>
 
-          <button class="btn btn-primary w-100 py-2">
-            <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar
+          <hr class="my-4">
+
+          <div class="mb-3">
+            <label class="form-label">Almacenero</label>
+            <select class="form-select" name="almacenero">
+              <option value="">(Solo almacén)</option>
+              <option value="EDWIN ROMERO">EDWIN ROMERO</option>
+              <option value="EDGAR GARCIA">EDGAR GARCIA</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Contraseña almacén</label>
+            <input type="password" class="form-control" name="password" placeholder="••••••••">
+          </div>
+
+          <button class="btn btn-primary w-100">
+            Ingresar
           </button>
         </form>
 
