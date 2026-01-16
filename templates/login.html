@@ -6,31 +6,33 @@
     <div class="card shadow-sm border-0">
       <div class="card-body p-4">
 
-        <h4 class="mb-1">Ingreso</h4>
-        <p class="text-muted mb-4">Personal: solo escribe tu <b>Nombre y Apellidos</b>. <br>Almacenero: ingresa con tu contraseña.</p>
+        <h4>Ingreso</h4>
+        <p class="text-muted">
+          Personal: escribe tu nombre o código.<br>
+          Almacenero: selecciona y coloca tu clave.
+        </p>
 
         {% if error %}
           <div class="alert alert-danger">{{ error }}</div>
         {% endif %}
 
-        <form method="post" action="{{ url_for('login') }}">
+        <form method="post">
+
           <div class="mb-3">
-            <label class="form-label">Personal (código o DNI)</label>
-            <input type="text" class="form-control" name="codigo_personal" placeholder="Ej: 1001" autocomplete="off">
-            <div class="form-text">Si eres personal, puedes ingresar solo con tu código/DNI.</div>
+            <label class="form-label">Código / DNI</label>
+            <input name="codigo_personal" class="form-control">
           </div>
 
           <div class="mb-3">
             <label class="form-label">Nombres y Apellidos</label>
-            <input type="text" class="form-control" name="nombre_personal" placeholder="Ej: Juan Pérez" autocomplete="off">
-            <div class="form-text">Si tu código no existe, puedes escribir tu nombre completo.</div>
+            <input name="nombre_personal" class="form-control">
           </div>
 
-          <hr class="my-4">
+          <hr>
 
           <div class="mb-3">
             <label class="form-label">Almacenero</label>
-            <select class="form-select" name="almacenero">
+            <select name="almacenero" class="form-select">
               <option value="">(Solo almacén)</option>
               <option value="EDWIN ROMERO">EDWIN ROMERO</option>
               <option value="EDGAR GARCIA">EDGAR GARCIA</option>
@@ -38,13 +40,12 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Contraseña almacén</label>
-            <input type="password" class="form-control" name="password" placeholder="••••••••">
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-control">
           </div>
 
-          <button class="btn btn-primary w-100">
-            Ingresar
-          </button>
+          <button class="btn btn-primary w-100">Ingresar</button>
+
         </form>
 
       </div>
