@@ -126,7 +126,11 @@ def logout():
 def api_catalogo():
     tipo = request.args.get("tipo", "").upper()
 
-    with open("catalogo.json", encoding="utf-8") as f:
-        catalogo = json.load(f)
+    try:
+        with open("catalogo.json", encoding="utf-8") as f:
+            catalogo = json.load(f)
+    except Exception as e:
+        print("❌ Error leyendo catalogo.json:", e)
+        return {"items": []}
 
     return {"items": catalogo.get(tipo, [])}
