@@ -72,7 +72,10 @@ def bandeja():
     if "nombre" not in session or session.get("rol") != "ALMACEN":
         return redirect(url_for("login"))
 
-    return render_template("bandeja.html")
+    # 🔑 POR AHORA lista vacía (luego va Google Sheets)
+    solicitudes = []
+
+    return render_template("bandeja.html", solicitudes=solicitudes)
 
 @app.route("/inicio")
 def inicio():
