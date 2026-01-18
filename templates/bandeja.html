@@ -50,10 +50,11 @@
                 <td><b>{{ s.cantidad }}</b></td>
                 <td>
                   {% if s.estado == "PENDIENTE" %}
-                    <span class="badge bg-danger">PENDIENTE</span>
-                  {% else %}
-                    <span class="badge bg-primary">ATENDIDO</span>
-                  {% endif %}
+ 		  <a href="/accion/{{ s.fila }}/ATENDIDO" class="btn btn-success btn-sm">Atender</a>
+  		  <a href="/accion/{{ s.fila }}/RECHAZADO" class="btn btn-danger btn-sm">Rechazar</a>
+		  {% else %}
+  		  <span class="badge bg-secondary">{{ s.estado }}</span>
+		  {% endif %}
                 </td>
                 <td class="text-end">
                   {% if s.estado == "PENDIENTE" %}
