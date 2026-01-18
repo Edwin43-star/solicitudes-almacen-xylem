@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h4>Bienvenido {{ session.get("nombre") }}</h4>
+
+<a href="{{ url_for('solicitar') }}" class="btn btn-success">
+  Nueva Solicitud
+</a>
+
+<a href="{{ url_for('logout') }}" class="btn btn-outline-danger ms-2">
+  Salir
+</a>
+
+{% endblock %}
