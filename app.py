@@ -3,6 +3,7 @@ import os
 import json
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -20,6 +21,10 @@ def get_gsheet():
     )
     client = gspread.authorize(credentials)
     return client.open_by_key(SPREADSHEET_ID)
+
+def get_ws(nombre):
+    sh = get_gsheet()
+    return sh.worksheet(nombre)
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -72,8 +77,20 @@ def bandeja():
     if "nombre" not in session or session.get("rol") != "ALMACEN":
         return redirect(url_for("login"))
 
-    # 🔑 POR AHORA lista vacía (luego va Google Sheets)
+    ws = get_ws("Solicitudes")
+    filas = ws.get_all_records()
+
     solicitudes = []
+    for i, f in enumerate(filas, start=2):
+        solicitudes.append({
+            "fila": i,
+            "fecha": f.get("FECHA", ""),
+            "solicitante": f.get("SOLICITANTE", ""),
+            "tipo": f.get("TIPO", ""),
+            "descripcion": f.get("DESCRIPCION", ""),
+            "cantidad": f.get("CANTIDAD", ""),
+            "estado": f.get("ESTADO", "")
+        })
 
     return render_template("bandeja.html", solicitudes=solicitudes)
 
@@ -108,6 +125,23 @@ def guardar_solicitud():
         return redirect(url_for("solicitar"))
 
     items = json.loads(items_json)
+    ws = get_ws("Solicitudes")
+
+    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+    solicitante = session.get("nombre")
+
+    for item in items:
+        ws.append_row([
+            fecha,
+            solicitante,
+            item.get("tipo", ""),
+            item.get("descripcion", ""),
+            item.get("cantidad", ""),
+            item.get("stock", ""),
+            "PENDIENTE",
+            ""
+        ])
+
     flash("Solicitud enviada correctamente", "success")
     return redirect(url_for("solicitar"))
 
@@ -144,3 +178,15 @@ def api_catalogo():
     except Exception as e:
         print("ERROR /api/catalogo:", e)
         return jsonify({"items": [], "error": str(e)}), 2000
+
+@app.route("/accion/<int:fila>/<estado>")
+def accion_solicitud(fila, estado):
+    if "nombre" not in session or session.get("rol") != "ALMACEN":
+        return redirect(url_for("login"))
+
+    ws = get_ws("Solicitudes")
+
+    ws.update_cell(fila, 7, estado)  # ESTADO
+    ws.update_cell(fila, 8, session.get("nombre"))  # ALMACENERO
+
+    return redirect(url_for("bandeja"))
