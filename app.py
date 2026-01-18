@@ -126,26 +126,7 @@ def logout():
 def api_catalogo():
     tipo = request.args.get("tipo", "").upper()
 
-    try:
-        sh = gc.open_by_key(SPREADSHEET_ID)
-        ws = sh.worksheet("Catalogo")
-        rows = ws.get_all_records()
+    with open("catalogo.json", encoding="utf-8") as f:
+        catalogo = json.load(f)
 
-        items = []
-        for r in rows:
-            if r.get("ACTIVO", "").upper() != "SI":
-                continue
-            if r.get("TIPO", "").upper() != tipo:
-                continue
-
-            items.append({
-                "codigo": r.get("CODIGO", ""),
-                "descripcion": r.get("DESCRIPCION", ""),
-                "stock": r.get("STOCK", 0),
-                "um": r.get("U.M", "")
-            })
-
-        return {"items": items}
-
-    except Exception as e:
-        return {"items": [], "error": str(e)}
+    return {"items": catalogo.get(tipo, [])}
