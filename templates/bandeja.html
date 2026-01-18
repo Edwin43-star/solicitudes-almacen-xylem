@@ -7,10 +7,15 @@
     <div class="text-muted">Almacén: <b>{{ session.get("usuario","") }}</b></div>
   </div>
 
-  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inicio') }}">
-    Inicio
-  </a>
-</div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inicio') }}">
+      Inicio
+    </a>
+    <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">
+      Salir
+    </a>
+  </div>
+</div>>
 
 {% if error %}
   <div class="alert alert-danger">{{ error }}</div>
