@@ -1,9 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import os
 import json
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
+def get_gsheet():
+    creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    client = gspread.authorize(credentials)
+
+    spreadsheet_id = os.environ["SPREADSHEET_ID"]
+    return client.open_by_key(spreadsheet_id)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem-secret")
+
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -102,25 +118,26 @@ def logout():
 def api_catalogo():
     tipo = request.args.get("tipo", "").upper()
 
-    # 🔹 Catálogo temporal (luego lo conectamos a Excel)
-    catalogo = {
-        "EPP": [
-            {"descripcion": "Casco de seguridad", "stock": 25},
-            {"descripcion": "Guantes de nitrilo", "stock": 100},
-            {"descripcion": "Lentes de seguridad", "stock": 40},
-        ],
-        "CONSUMIBLE": [
-            {"descripcion": "Cinta aislante", "stock": 60},
-            {"descripcion": "Trapo industrial", "stock": 80},
-        ],
-        "EQUIPO": [
-            {"descripcion": "Multímetro", "stock": 5},
-        ],
-        "HERRAMIENTA": [
-            {"descripcion": "Llave francesa", "stock": 12},
-        ]
-    }
+    try:
+        sh = gc.open_by_key(SPREADSHEET_ID)
+        ws = sh.worksheet("Catalogo")
+        rows = ws.get_all_records()
 
-    return {
-        "items": catalogo.get(tipo, [])
-    }
+        items = []
+        for r in rows:
+            if r.get("ACTIVO", "").upper() != "SI":
+                continue
+            if r.get("TIPO", "").upper() != tipo:
+                continue
+
+            items.append({
+                "codigo": r.get("CODIGO", ""),
+                "descripcion": r.get("DESCRIPCION", ""),
+                "stock": r.get("STOCK", 0),
+                "um": r.get("U.M", "")
+            })
+
+        return {"items": items}
+
+    except Exception as e:
+        return {"items": [], "error": str(e)}
