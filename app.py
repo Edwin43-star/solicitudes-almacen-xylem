@@ -114,18 +114,30 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-@app.route("/api/test_gsheet")
-def test_gsheet():
+@app.route("/api/catalogo")
+def api_catalogo():
+    tipo = request.args.get("tipo", "").strip().upper()
+
     try:
         sh = get_gsheet()
         ws = sh.worksheet("Catalogo")
         filas = ws.get_all_records()
-        print("FILAS LEÍDAS:", len(filas))
-        return jsonify({
-            "ok": True,
-            "filas": len(filas),
-            "primer_registro": filas[0] if filas else None
-        })
+
+        print("TIPO SOLICITADO:", tipo)
+        print("TOTAL FILAS:", len(filas))
+
+        items = []
+
+        for fila in filas:
+            if fila["ACTIVO"] == "SI" and fila["TIPO"].upper() == tipo:
+                items.append({
+                    "descripcion": fila["DESCRIPCION"],
+                    "stock": fila["STOCK"]
+                })
+
+        print("ITEMS DEVUELTOS:", len(items))
+        return jsonify({"items": items})
+
     except Exception as e:
-        print("ERROR GSHEET:", e)
-        return jsonify({"ok": False, "error": str(e)}), 2000
+        print("ERROR /api/catalogo:", e)
+        return jsonify({"items": [], "error": str(e)}), 2000
