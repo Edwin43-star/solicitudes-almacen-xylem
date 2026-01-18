@@ -102,7 +102,136 @@
   </div>
 </div>
 
-<!-- 🔽 TODO EL SCRIPT QUEDA EXACTAMENTE IGUAL 🔽 -->
-{{ super() }}
+<script>
+let catalogoActual = [];   // [{descripcion, stock}]
+let items = [];            // [{tipo, descripcion, stock, cantidad}]
+
+const tipoEl = document.getElementById("tipo");
+const articuloEl = document.getElementById("articulo");
+const cantidadEl = document.getElementById("cantidad");
+const btnAgregar = document.getElementById("btnAgregar");
+const btnEnviar = document.getElementById("btnEnviar");
+const stockHelp = document.getElementById("stockHelp");
+
+tipoEl.addEventListener("change", async () => {
+  const tipo = tipoEl.value;
+  resetSelector();
+
+  if (!tipo) return;
+
+  try {
+    const r = await fetch(`/api/catalogo?tipo=${encodeURIComponent(tipo)}`);
+    const data = await r.json();
+
+    catalogoActual = (data.items || []);
+    articuloEl.innerHTML = "<option value=''>Seleccione...</option>";
+
+    catalogoActual.forEach(it => {
+      const opt = document.createElement("option");
+      opt.value = it.descripcion;
+      opt.textContent = it.descripcion;
+      opt.dataset.stock = (it.stock ?? "");
+      articuloEl.appendChild(opt);
+    });
+
+    articuloEl.disabled = false;
+    cantidadEl.disabled = false;
+    btnAgregar.disabled = false;
+  } catch (e) {
+    articuloEl.innerHTML = "<option value=''>Error cargando catálogo</option>";
+  }
+});
+
+articuloEl.addEventListener("change", () => {
+  const selected = articuloEl.options[articuloEl.selectedIndex];
+  const stock = selected?.dataset?.stock ?? "";
+  stockHelp.textContent = stock !== "" ? `Stock disponible: ${stock}` : "";
+});
+
+btnAgregar.addEventListener("click", () => {
+  const tipo = tipoEl.value;
+  const desc = articuloEl.value;
+  const cant = parseInt(cantidadEl.value || "0", 10);
+
+  if (!tipo || !desc || !cant || cant <= 0) return;
+
+  const opt = articuloEl.options[articuloEl.selectedIndex];
+  const stock = parseFloat(opt?.dataset?.stock ?? "0");
+
+  // Validación stock (si stock viene vacío, no bloquea)
+  if (!isNaN(stock) && stock > 0 && cant > stock) {
+    alert(`Cantidad supera stock (${stock}).`);
+    return;
+  }
+
+  // Si ya existe el mismo ítem, acumula cantidad
+  const idx = items.findIndex(x => x.tipo === tipo && x.descripcion === desc);
+  if (idx >= 0) {
+    const nueva = items[idx].cantidad + cant;
+    if (!isNaN(stock) && stock > 0 && nueva > stock) {
+      alert(`Cantidad total supera stock (${stock}).`);
+      return;
+    }
+    items[idx].cantidad = nueva;
+  } else {
+    items.push({ tipo, descripcion: desc, stock: isNaN(stock) ? "" : stock, cantidad: cant });
+  }
+
+  renderTabla();
+  btnEnviar.disabled = items.length === 0;
+});
+
+function quitarItem(i) {
+  items.splice(i, 1);
+  renderTabla();
+  btnEnviar.disabled = items.length === 0;
+}
+
+function renderTabla() {
+  const tbody = document.querySelector("#tablaItems tbody");
+  tbody.innerHTML = "";
+
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr id="filaVacia"><td colspan="5" class="text-muted">Aún no agregas ítems.</td></tr>`;
+    return;
+  }
+
+  items.forEach((it, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="badge bg-secondary">${it.tipo}</span></td>
+      <td>${escapeHtml(it.descripcion)}</td>
+      <td>${it.stock === "" ? "-" : it.stock}</td>
+      <td><b>${it.cantidad}</b></td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-danger" type="button" onclick="quitarItem(${i})">
+          Quitar
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function prepararEnvio() {
+  if (items.length === 0) return false;
+  document.getElementById("items_json").value = JSON.stringify(items);
+  return true;
+}
+
+function resetSelector() {
+  catalogoActual = [];
+  articuloEl.innerHTML = "<option value=''>Seleccione tipo primero</option>";
+  articuloEl.disabled = true;
+  cantidadEl.value = 1;
+  cantidadEl.disabled = true;
+  btnAgregar.disabled = true;
+  stockHelp.textContent = "";
+}
+
+function escapeHtml(str) {
+  return (str || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+</script>
 
 {% endblock %}
