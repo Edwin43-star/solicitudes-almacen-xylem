@@ -4,12 +4,19 @@
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
     <h4 class="mb-0">Bandeja de Solicitudes</h4>
-    <div class="text-muted">Almacén: <b>{{ session.get("usuario","") }}</b></div>
+    <div class="text-muted">
+      Almacén: <b>{{ session.get("nombre","") }}</b>
+    </div>
   </div>
 
-  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inicio') }}">
-    Inicio
-  </a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inicio') }}">
+      Inicio
+    </a>
+    <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">
+      Salir
+    </a>
+  </div>
 </div>
 
 {% if error %}
@@ -47,7 +54,7 @@
                   {% if s.estado == "PENDIENTE" %}
                     <span class="badge bg-danger">PENDIENTE</span>
                   {% else %}
-                    <span class="badge bg-primary">ATENDIDO</span>
+                    <span class="badge bg-success">ATENDIDO</span>
                   {% endif %}
                 </td>
                 <td class="text-end">
@@ -67,10 +74,10 @@
             </tr>
           {% endif %}
         </tbody>
-      </table>
+      </table confirmed>
     </div>
 
   </div>
 </div>
 
-{% endblock %}
+{% endblock %
