@@ -4,7 +4,11 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-app = Flask(__name__)
+# ===============================
+# CONFIGURACIÓN GOOGLE SHEETS
+# ===============================
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
+
 def get_gsheet():
     creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 
@@ -16,9 +20,13 @@ def get_gsheet():
     credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     client = gspread.authorize(credentials)
 
-    spreadsheet_id = os.environ["SPREADSHEET_ID"]
-    return client.open_by_key(spreadsheet_id)
-app.secret_key = os.environ.get("SECRET_KEY", "xylem-secret")
+    return client.open_by_key(SPREADSHEET_ID)
+
+# ===============================
+# APP FLASK
+# ===============================
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
 
 
 # ===============================
