@@ -1,33 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import os
 import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-# ===============================
-# CONFIGURACIÓN GOOGLE SHEETS
-# ===============================
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID")
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
+
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
+GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 
 def get_gsheet():
-    creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
-
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-
-    credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    credentials = Credentials.from_service_account_info(
+        GOOGLE_CREDENTIALS, scopes=scopes
+    )
     client = gspread.authorize(credentials)
-
     return client.open_by_key(SPREADSHEET_ID)
-
-# ===============================
-# APP FLASK
-# ===============================
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
-
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -122,15 +114,18 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-@app.route("/api/catalogo")
-def api_catalogo():
-    tipo = request.args.get("tipo", "").upper()
-
+@app.route("/api/test_gsheet")
+def test_gsheet():
     try:
-        with open("catalogo.json", encoding="utf-8") as f:
-            catalogo = json.load(f)
+        sh = get_gsheet()
+        ws = sh.worksheet("Catalogo")
+        filas = ws.get_all_records()
+        print("FILAS LEÍDAS:", len(filas))
+        return jsonify({
+            "ok": True,
+            "filas": len(filas),
+            "primer_registro": filas[0] if filas else None
+        })
     except Exception as e:
-        print("❌ Error leyendo catalogo.json:", e)
-        return {"items": []}
-
-    return {"items": catalogo.get(tipo, [])}
+        print("ERROR GSHEET:", e)
+        return jsonify({"ok": False, "error": str(e)}), 2000
