@@ -181,23 +181,23 @@ def guardar_solicitud():
         solicitante = session.get("nombre")
 
         for item in items:
-    ws.append_row([
-        fecha_str,                   # A FECHA
-        solicitante,                 # B SOLICITANTE
-        item.get("tipo", ""),        # C TIPO
-        item.get("descripcion", ""), # D DESCRIPCION
-        item.get("cantidad", ""),    # E CANTIDAD
-        "PENDIENTE",                 # F ESTADO
-        "",                          # G ALMACENERO
-    ])
+            ws.append_row([
+                fecha_str,                   # A FECHA
+                solicitante,                 # B SOLICITANTE
+                item.get("tipo", ""),        # C TIPO
+                item.get("descripcion", ""), # D DESCRIPCION
+                item.get("cantidad", ""),    # E CANTIDAD
+                "PENDIENTE",                 # F ESTADO
+                "",                          # G ALMACENERO
+            ])
 
-    # 🔔 DISPARAR WHATSAPP (UNA VEZ POR ÍTEM)
-    enviar_whatsapp(
-        solicitante,
-        item.get("tipo", ""),
-        item.get("descripcion", ""),
-        item.get("cantidad", "")
-    )
+            # 🔔 DISPARAR WHATSAPP (UNA VEZ POR ÍTEM)
+            enviar_whatsapp(
+                solicitante,
+                item.get("tipo", ""),
+                item.get("descripcion", ""),
+                item.get("cantidad", "")
+            )
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
