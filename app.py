@@ -11,32 +11,35 @@ app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 
+
 def get_gsheet():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
+        "https://www.googleapis.com/auth/drive",
     ]
-    credentials = Credentials.from_service_account_info(
-        GOOGLE_CREDENTIALS, scopes=scopes
-    )
+    credentials = Credentials.from_service_account_info(GOOGLE_CREDENTIALS, scopes=scopes)
     client = gspread.authorize(credentials)
     return client.open_by_key(SPREADSHEET_ID)
+
+
+def get_ws(nombre):
+    sh = get_gsheet()
+    return sh.worksheet(nombre)
+
 
 def get_usuario(codigo):
     ws = get_ws("Usuarios")
     filas = ws.get_all_records()
 
     for fila in filas:
-        if str(fila["CODIGO"]).strip() == str(codigo).strip():
+        if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
+            # OJO: devolvemos claves "nombre" y "rol"
             return {
-                "nombre": fila["NOMBRE COMPLETO"],
-                "rol": fila["ROL"]
+                "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
+                "rol": str(fila.get("ROL", "")).strip(),
             }
     return None
 
-def get_ws(nombre):
-    sh = get_gsheet()
-    return sh.worksheet(nombre)
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -46,10 +49,10 @@ def get_ws(nombre):
 def root():
     return redirect(url_for("login"))
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-
         # --- PERSONAL ---
         codigo_personal = request.form.get("codigo_personal", "").strip()
         nombre_personal = request.form.get("nombre_personal", "").strip()
@@ -74,65 +77,25 @@ def login():
 
             return render_template("login.html", error="Contraseña incorrecta")
 
-        # Personal
+        # Personal (con validación desde sheet Usuarios por CODIGO)
         if codigo_personal:
-    	    usuario = get_usuario(codigo_personal)
+            usuario = get_usuario(codigo_personal)
+            if usuario:
+                session["rol"] = "PERSONAL"
+                session["nombre"] = usuario["nombre"]
+                return redirect(url_for("inicio"))
+            return render_template("login.html", error="Código no registrado")
 
-    		if usuario:
-        	    session["rol"] = "PERSONAL"
-        	    session["nombre"] = usuario["NOMBRE"]
-        	    return redirect(url_for("inicio"))
-    		else:
-        	    return render_template(
-            		"login.html",
-            		error="Código no registrado"
-        	)
+        # (si quieres permitir login por nombre sin código, lo dejamos como estaba)
+        if nombre_personal:
+            session["rol"] = "PERSONAL"
+            session["nombre"] = nombre_personal
+            return redirect(url_for("inicio"))
 
-@app.route("/bandeja")
-def bandeja():
-    if "rol" not in session or session.get("rol") != "ALMACEN":
-        return redirect(url_for("login"))
+        return render_template("login.html", error="Complete los datos de ingreso")
 
-    ws = get_ws("Solicitudes")
-    filas = ws.get_all_values()
+    return render_template("login.html")
 
-    solicitudes = []
-
-    for i, fila in enumerate(filas[1:], start=2):  # empieza desde fila real en Sheets
-        solicitudes.append({
-            "fila": i,
-            "fecha": fila[0],
-            "solicitante": fila[1],
-            "tipo": fila[2],
-            "descripcion": fila[3],
-            "cantidad": fila[4],
-            "estado": fila[5]
-        })
-
-    return render_template("bandeja.html", solicitudes=solicitudes)
-
-@app.route("/actualizar_estado", methods=["POST"])
-def actualizar_estado():
-    if "rol" not in session or session.get("rol") != "ALMACEN":
-        return redirect(url_for("login"))
-
-    fila = int(request.form.get("fila"))
-    nuevo_estado = request.form.get("estado")
-    almacenero = session.get("nombre")
-
-    try:
-        ws = get_ws("Solicitudes")
-
-        # Col F = ESTADO, Col G = ALMACENERO
-        ws.update_cell(fila, 6, nuevo_estado)
-        ws.update_cell(fila, 7, almacenero)
-
-        flash(f"Solicitud {nuevo_estado}", "success")
-
-    except Exception as e:
-        flash(f"Error al actualizar: {e}", "danger")
-
-    return redirect(url_for("bandeja"))
 
 @app.route("/inicio")
 def inicio():
@@ -159,10 +122,10 @@ def guardar_solicitud():
     if "nombre" not in session:
         return redirect(url_for("login"))
 
-    items_json = request.form.get("items_json")
+    items_json = request.form.get("items_json", "").strip()
 
     if not items_json:
-         flash("No hay ítems en la solicitud", "danger")
+        flash("No hay ítems en la solicitud", "danger")
         return redirect(url_for("solicitar"))
 
     try:
@@ -174,17 +137,17 @@ def guardar_solicitud():
 
         for item in items:
             ws.append_row([
-                fecha,                     # A FECHA
-                solicitante,               # B SOLICITANTE
-                item["tipo"],              # C TIPO
-                item["descripcion"],       # D DESCRIPCION
-                item["cantidad"],          # E CANTIDAD
-                "PENDIENTE",               # F ESTADO
-                ""                          # G ALMACENERO
+                fecha,                    # A FECHA
+                solicitante,              # B SOLICITANTE
+                item.get("tipo", ""),     # C TIPO
+                item.get("descripcion", ""),  # D DESCRIPCION
+                item.get("cantidad", ""), # E CANTIDAD
+                "PENDIENTE",              # F ESTADO
+                "",                       # G ALMACENERO
             ])
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
-    	return redirect(url_for("solicitar"))
+        return redirect(url_for("solicitar"))
 
     except Exception as e:
         print("ERROR guardar_solicitud:", e)
@@ -192,47 +155,95 @@ def guardar_solicitud():
         return redirect(url_for("solicitar"))
 
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
+@app.route("/bandeja")
+def bandeja():
+    if "rol" not in session or session.get("rol") != "ALMACEN":
+        return redirect(url_for("login"))
+
+    ws = get_ws("Solicitudes")
+    filas = ws.get_all_values()
+
+    solicitudes = []
+
+    # Esperado:
+    # A FECHA, B SOLICITANTE, C TIPO, D DESCRIPCION, E CANTIDAD, F ESTADO, G ALMACENERO
+    for i, fila in enumerate(filas[1:], start=2):  # fila real en Sheets
+        # protege por si vienen filas cortas
+        fecha = fila[0] if len(fila) > 0 else ""
+        solicitante = fila[1] if len(fila) > 1 else ""
+        tipo = fila[2] if len(fila) > 2 else ""
+        descripcion = fila[3] if len(fila) > 3 else ""
+        cantidad = fila[4] if len(fila) > 4 else ""
+        estado = fila[5] if len(fila) > 5 else ""
+        almacenero = fila[6] if len(fila) > 6 else ""
+
+        solicitudes.append({
+            "fila": i,
+            "fecha": fecha,
+            "solicitante": solicitante,
+            "tipo": tipo,
+            "descripcion": descripcion,
+            "cantidad": cantidad,
+            "estado": estado,
+            "almacenero": almacenero,
+        })
+
+    return render_template("bandeja.html", solicitudes=solicitudes)
+
+
+@app.route("/actualizar_estado", methods=["POST"])
+def actualizar_estado():
+    if "rol" not in session or session.get("rol") != "ALMACEN":
+        return redirect(url_for("login"))
+
+    fila = int(request.form.get("fila"))
+    nuevo_estado = request.form.get("estado", "").strip().upper()
+    almacenero = session.get("nombre")
+
+    try:
+        ws = get_ws("Solicitudes")
+
+        # Col F = ESTADO (6), Col G = ALMACENERO (7)
+        ws.update_cell(fila, 6, nuevo_estado)
+        ws.update_cell(fila, 7, almacenero)
+
+        flash(f"Solicitud {nuevo_estado}", "success")
+
+    except Exception as e:
+        flash(f"Error al actualizar: {e}", "danger")
+
+    return redirect(url_for("bandeja"))
+
 
 @app.route("/api/catalogo")
 def api_catalogo():
     tipo = request.args.get("tipo", "").strip().upper()
 
     try:
-        sh = get_gsheet()
-        ws = sh.worksheet("Catalogo")
+        ws = get_ws("Catalogo")
         filas = ws.get_all_records()
 
-        print("TIPO SOLICITADO:", tipo)
-        print("TOTAL FILAS:", len(filas))
-
         items = []
-
         for fila in filas:
-            if fila["ACTIVO"] == "SI" and fila["TIPO"].upper() == tipo:
+            # claves esperadas: TIPO, DESCRIPCION, STOCK, ACTIVO
+            activo = str(fila.get("ACTIVO", "")).strip().upper()
+            tipo_fila = str(fila.get("TIPO", "")).strip().upper()
+
+            if activo == "SI" and tipo_fila == tipo:
                 items.append({
-                    "descripcion": fila["DESCRIPCION"],
-                    "stock": fila["STOCK"]
+                    "descripcion": fila.get("DESCRIPCION", ""),
+                    "stock": fila.get("STOCK", ""),
                 })
 
-        print("ITEMS DEVUELTOS:", len(items))
         return jsonify({"items": items})
 
     except Exception as e:
         print("ERROR /api/catalogo:", e)
-        return jsonify({"items": [], "error": str(e)}), 2000
+        # 500 para que en logs se note como error real
+        return jsonify({"items": [], "error": str(e)}), 500
 
-@app.route("/accion/<int:fila>/<estado>")
-def accion_solicitud(fila, estado):
-    if "nombre" not in session or session.get("rol") != "ALMACEN":
-        return redirect(url_for("login"))
 
-    ws = get_ws("Solicitudes")
-
-    ws.update_cell(fila, 7, estado)  # ESTADO
-    ws.update_cell(fila, 8, session.get("nombre"))  # ALMACENERO
-
-    return redirect(url_for("bandeja"))
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
