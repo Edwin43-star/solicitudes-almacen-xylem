@@ -22,6 +22,18 @@ def get_gsheet():
     client = gspread.authorize(credentials)
     return client.open_by_key(SPREADSHEET_ID)
 
+def get_usuario(codigo):
+    ws = get_ws("Usuarios")
+    filas = ws.get_all_records()
+
+    for fila in filas:
+        if str(fila["CODIGO"]).strip() == str(codigo).strip():
+            return {
+                "nombre": fila["NOMBRE COMPLETO"],
+                "rol": fila["ROL"]
+            }
+    return None
+
 def get_ws(nombre):
     sh = get_gsheet()
     return sh.worksheet(nombre)
@@ -63,14 +75,16 @@ def login():
             return render_template("login.html", error="Contraseña incorrecta")
 
         # Personal
-        if codigo_personal or nombre_personal:
-            session["rol"] = "PERSONAL"
-            session["nombre"] = nombre_personal if nombre_personal else f"Código {codigo_personal}"
-            return redirect(url_for("inicio"))
+        if codigo_personal:
+    usuario = get_usuario(codigo_personal)
 
-        return render_template("login.html", error="Complete los datos de ingreso")
+    if not usuario:
+        return render_template("login.html", error="Usuario no registrado")
 
-    return render_template("login.html")
+    session["rol"] = usuario["rol"]
+    session["nombre"] = usuario["nombre"]
+    session["codigo"] = codigo_personal
+    return redirect(url_for("inicio"))
 
 @app.route("/bandeja")
 def bandeja():
@@ -146,7 +160,7 @@ def guardar_solicitud():
     items_json = request.form.get("items_json")
 
     if not items_json:
-        flash("No hay ítems en la solicitud", "danger")
+        flash("✅ Solicitud registrada. El almacén la atenderá su Solicitud.", "success"))
         return redirect(url_for("solicitar"))
 
     try:
