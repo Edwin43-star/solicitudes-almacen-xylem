@@ -74,25 +74,49 @@ def login():
 
 @app.route("/bandeja")
 def bandeja():
-    if "nombre" not in session or session.get("rol") != "ALMACEN":
+    if "rol" not in session or session.get("rol") != "ALMACEN":
         return redirect(url_for("login"))
 
     ws = get_ws("Solicitudes")
-    filas = ws.get_all_records()
+    filas = ws.get_all_values()
 
     solicitudes = []
-    for i, f in enumerate(filas, start=2):
+
+    for i, fila in enumerate(filas[1:], start=2):  # empieza desde fila real en Sheets
         solicitudes.append({
             "fila": i,
-            "fecha": f.get("FECHA", ""),
-            "solicitante": f.get("SOLICITANTE", ""),
-            "tipo": f.get("TIPO", ""),
-            "descripcion": f.get("DESCRIPCION", ""),
-            "cantidad": f.get("CANTIDAD", ""),
-            "estado": f.get("ESTADO", "")
+            "fecha": fila[0],
+            "solicitante": fila[1],
+            "tipo": fila[2],
+            "descripcion": fila[3],
+            "cantidad": fila[4],
+            "estado": fila[5]
         })
 
     return render_template("bandeja.html", solicitudes=solicitudes)
+
+@app.route("/actualizar_estado", methods=["POST"])
+def actualizar_estado():
+    if "rol" not in session or session.get("rol") != "ALMACEN":
+        return redirect(url_for("login"))
+
+    fila = int(request.form.get("fila"))
+    nuevo_estado = request.form.get("estado")
+    almacenero = session.get("nombre")
+
+    try:
+        ws = get_ws("Solicitudes")
+
+        # Col F = ESTADO, Col G = ALMACENERO
+        ws.update_cell(fila, 6, nuevo_estado)
+        ws.update_cell(fila, 7, almacenero)
+
+        flash(f"Solicitud {nuevo_estado}", "success")
+
+    except Exception as e:
+        flash(f"Error al actualizar: {e}", "danger")
+
+    return redirect(url_for("bandeja"))
 
 @app.route("/inicio")
 def inicio():
