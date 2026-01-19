@@ -76,15 +76,17 @@ def login():
 
         # Personal
         if codigo_personal:
-    usuario = get_usuario(codigo_personal)
+    	    usuario = get_usuario(codigo_personal)
 
-    if not usuario:
-        return render_template("login.html", error="Usuario no registrado")
-
-    session["rol"] = usuario["rol"]
-    session["nombre"] = usuario["nombre"]
-    session["codigo"] = codigo_personal
-    return redirect(url_for("inicio"))
+    		if usuario:
+        	    session["rol"] = "PERSONAL"
+        	    session["nombre"] = usuario["NOMBRE"]
+        	    return redirect(url_for("inicio"))
+    		else:
+        	    return render_template(
+            		"login.html",
+            		error="Código no registrado"
+        	)
 
 @app.route("/bandeja")
 def bandeja():
@@ -160,7 +162,7 @@ def guardar_solicitud():
     items_json = request.form.get("items_json")
 
     if not items_json:
-        flash("✅ Solicitud registrada. El almacén la atenderá su Solicitud.", "success")
+         flash("No hay ítems en la solicitud", "danger")
         return redirect(url_for("solicitar"))
 
     try:
@@ -181,8 +183,8 @@ def guardar_solicitud():
                 ""                          # G ALMACENERO
             ])
 
-        flash("Solicitud enviada correctamente", "success")
-        return redirect(url_for("solicitar"))
+        flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
+    	return redirect(url_for("solicitar"))
 
     except Exception as e:
         print("ERROR guardar_solicitud:", e)
