@@ -119,30 +119,37 @@ def guardar_solicitud():
     if "nombre" not in session:
         return redirect(url_for("login"))
 
-    items_json = request.form.get("items_json", "")
+    items_json = request.form.get("items_json")
+
     if not items_json:
         flash("No hay ítems en la solicitud", "danger")
         return redirect(url_for("solicitar"))
 
-    items = json.loads(items_json)
-    ws = get_ws("Solicitudes")
+    try:
+        items = json.loads(items_json)
+        ws = get_ws("Solicitudes")
 
-    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-    solicitante = session.get("nombre")
+        fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+        solicitante = session.get("nombre")
 
-    for item in items:
-        ws.append_row([
-    fecha,          # A FECHA
-    solicitante,    # B SOLICITANTE
-    tipo,           # C TIPO
-    descripcion,    # D DESCRIPCION
-    cantidad,       # E CANTIDAD
-    "PENDIENTE",    # F ESTADO
-    ""              # G ALMACENERO (vacío por ahora)
-])
+        for item in items:
+            ws.append_row([
+                fecha,                     # A FECHA
+                solicitante,               # B SOLICITANTE
+                item["tipo"],              # C TIPO
+                item["descripcion"],       # D DESCRIPCION
+                item["cantidad"],          # E CANTIDAD
+                "PENDIENTE",               # F ESTADO
+                ""                          # G ALMACENERO
+            ])
 
-    flash("Solicitud enviada correctamente", "success")
-    return redirect(url_for("solicitar"))
+        flash("Solicitud enviada correctamente", "success")
+        return redirect(url_for("solicitar"))
+
+    except Exception as e:
+        print("ERROR guardar_solicitud:", e)
+        flash(f"Error al guardar solicitud: {e}", "danger")
+        return redirect(url_for("solicitar"))
 
 
 @app.route("/logout")
