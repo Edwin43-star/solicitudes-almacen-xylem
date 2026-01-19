@@ -4,6 +4,7 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+from zoneinfo import zoneinfo
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -132,7 +133,8 @@ def guardar_solicitud():
         items = json.loads(items_json)
         ws = get_ws("Solicitudes")
 
-        fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+        fecha = datetime.now(ZoneInfo("America/Lima"))
+	fecha_str = fecha.strftime("%d/%m/%Y %H:%M") 
         solicitante = session.get("nombre")
 
         for item in items:
