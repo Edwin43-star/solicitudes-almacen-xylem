@@ -132,15 +132,14 @@ def guardar_solicitud():
 
     for item in items:
         ws.append_row([
-            fecha,
-            solicitante,
-            item.get("tipo", ""),
-            item.get("descripcion", ""),
-            item.get("cantidad", ""),
-            item.get("stock", ""),
-            "PENDIENTE",
-            ""
-        ])
+    fecha,          # A FECHA
+    solicitante,    # B SOLICITANTE
+    tipo,           # C TIPO
+    descripcion,    # D DESCRIPCION
+    cantidad,       # E CANTIDAD
+    "PENDIENTE",    # F ESTADO
+    ""              # G ALMACENERO (vacío por ahora)
+])
 
     flash("Solicitud enviada correctamente", "success")
     return redirect(url_for("solicitar"))
