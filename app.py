@@ -5,6 +5,48 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import requests
+
+# ===============================
+# WHATSAPP NOTIFICACIÓN
+# ===============================
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
+WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
+WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51987654321
+
+def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
+    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
+        print("⚠️ WhatsApp no configurado")
+        return
+
+    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
+
+    mensaje = (
+        f"📦 *Nueva solicitud de almacén*\n\n"
+        f"👤 Solicitante: {solicitante}\n"
+        f"📂 Tipo: {tipo}\n"
+        f"📝 Ítem: {descripcion}\n"
+        f"🔢 Cantidad: {cantidad}\n\n"
+        f"⏱ Estado: PENDIENTE"
+    )
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": WHATSAPP_TO,
+        "type": "text",
+        "text": {"body": mensaje}
+    }
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        r = requests.post(url, json=payload, headers=headers)
+        print("WhatsApp enviado:", r.status_code, r.text)
+    except Exception as e:
+        print("Error WhatsApp:", e)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -40,7 +82,6 @@ def get_usuario(codigo):
                 "rol": str(fila.get("ROL", "")).strip(),
             }
     return None
-
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -140,15 +181,23 @@ def guardar_solicitud():
         solicitante = session.get("nombre")
 
         for item in items:
-            ws.append_row([
-                fecha_str,                   # A FECHA
-                solicitante,                 # B SOLICITANTE
-                item.get("tipo", ""),        # C TIPO
-                item.get("descripcion", ""), # D DESCRIPCION
-                item.get("cantidad", ""),    # E CANTIDAD
-                "PENDIENTE",                 # F ESTADO
-                "",                          # G ALMACENERO
-            ])
+    ws.append_row([
+        fecha_str,                   # A FECHA
+        solicitante,                 # B SOLICITANTE
+        item.get("tipo", ""),        # C TIPO
+        item.get("descripcion", ""), # D DESCRIPCION
+        item.get("cantidad", ""),    # E CANTIDAD
+        "PENDIENTE",                 # F ESTADO
+        "",                          # G ALMACENERO
+    ])
+
+    # 🔔 DISPARAR WHATSAPP (UNA VEZ POR ÍTEM)
+    enviar_whatsapp(
+        solicitante,
+        item.get("tipo", ""),
+        item.get("descripcion", ""),
+        item.get("cantidad", "")
+    )
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
