@@ -38,41 +38,49 @@
             <th class="text-end">Acción</th>
           </tr>
         </thead>
-        <tbody>
-          {% if solicitudes and solicitudes|length > 0 %}
-            {% for s in solicitudes %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ s.fecha }}</td>
-                <td>{{ s.nombre }}</td>
-                <td><span class="badge bg-secondary">{{ s.tipo }}</span></td>
-                <td>{{ s.descripcion }}</td>
-                <td><b>{{ s.cantidad }}</b></td>
-                <td>
-                  {% if s.estado == "PENDIENTE" %}
- 		  <a href="/accion/{{ s.fila }}/ATENDIDO" class="btn btn-success btn-sm">Atender</a>
-  		  <a href="/accion/{{ s.fila }}/RECHAZADO" class="btn btn-danger btn-sm">Rechazar</a>
-		  {% else %}
-  		  <span class="badge bg-secondary">{{ s.estado }}</span>
-		  {% endif %}
-                </td>
-                <td class="text-end">
-                  {% if s.estado == "PENDIENTE" %}
-                    <form method="post" action="{{ url_for('atender', fila=s.fila) }}" class="d-inline">
-                      <button class="btn btn-sm btn-success">Atender</button>
-                    </form>
-                  {% else %}
-                    <span class="text-muted">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="8" class="text-muted">No hay solicitudes.</td>
-            </tr>
-          {% endif %}
-        </tbody>
+       <tbody>
+{% if solicitudes %}
+    {% for s in solicitudes %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ s.fecha }}</td>
+        <td>{{ s.solicitante }}</td>
+        <td><span class="badge bg-secondary">{{ s.tipo }}</span></td>
+        <td>{{ s.descripcion }}</td>
+        <td>{{ s.cantidad }}</td>
+        <td>
+            <span class="badge 
+                {% if s.estado == 'PENDIENTE' %}bg-warning
+                {% elif s.estado == 'ATENDIDO' %}bg-success
+                {% else %}bg-danger{% endif %}">
+                {{ s.estado }}
+            </span>
+        </td>
+        <td>
+            {% if s.estado == "PENDIENTE" %}
+            <form method="post" action="/actualizar_estado" style="display:inline">
+                <input type="hidden" name="fila" value="{{ s.fila }}">
+                <input type="hidden" name="estado" value="ATENDIDO">
+                <button class="btn btn-sm btn-success">Atender</button>
+            </form>
+
+            <form method="post" action="/actualizar_estado" style="display:inline">
+                <input type="hidden" name="fila" value="{{ s.fila }}">
+                <input type="hidden" name="estado" value="RECHAZADO">
+                <button class="btn btn-sm btn-danger">Rechazar</button>
+            </form>
+            {% else %}
+                —
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+{% else %}
+    <tr>
+        <td colspan="8">No hay solicitudes.</td>
+    </tr>
+{% endif %}
+</tbody>
       </table>
     </div>
 
