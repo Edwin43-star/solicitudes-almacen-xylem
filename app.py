@@ -160,7 +160,7 @@ def guardar_solicitud():
     items_json = request.form.get("items_json")
 
     if not items_json:
-        flash("✅ Solicitud registrada. El almacén la atenderá su Solicitud.", "success"))
+        flash("✅ Solicitud registrada. El almacén la atenderá su Solicitud.", "success")
         return redirect(url_for("solicitar"))
 
     try:
