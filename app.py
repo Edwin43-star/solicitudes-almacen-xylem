@@ -133,19 +133,21 @@ def guardar_solicitud():
         items = json.loads(items_json)
         ws = get_ws("Solicitudes")
 
-    fecha = datetime.now(ZoneInfo("America/Lima"))
-    fecha_str = fecha.strftime("%d/%m/%Y %H:%M") 
-    solicitante = session.get("nombre")
+        # ✅ FECHA Y HORA REAL DE PERÚ
+        fecha = datetime.now(ZoneInfo("America/Lima"))
+        fecha_str = fecha.strftime("%d/%m/%Y %H:%M")
+
+        solicitante = session.get("nombre")
 
         for item in items:
             ws.append_row([
-                fecha,                    # A FECHA
-                solicitante,              # B SOLICITANTE
-                item.get("tipo", ""),     # C TIPO
-                item.get("descripcion", ""),  # D DESCRIPCION
-                item.get("cantidad", ""), # E CANTIDAD
-                "PENDIENTE",              # F ESTADO
-                "",                       # G ALMACENERO
+                fecha_str,                   # A FECHA
+                solicitante,                 # B SOLICITANTE
+                item.get("tipo", ""),        # C TIPO
+                item.get("descripcion", ""), # D DESCRIPCION
+                item.get("cantidad", ""),    # E CANTIDAD
+                "PENDIENTE",                 # F ESTADO
+                "",                          # G ALMACENERO
             ])
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
@@ -155,7 +157,6 @@ def guardar_solicitud():
         print("ERROR guardar_solicitud:", e)
         flash(f"Error al guardar solicitud: {e}", "danger")
         return redirect(url_for("solicitar"))
-
 
 @app.route("/bandeja")
 def bandeja():
