@@ -4,7 +4,7 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-from zoneinfo import zoneinfo
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
