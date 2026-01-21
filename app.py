@@ -12,7 +12,7 @@ import requests
 # ===============================
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
-WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51987654321
+WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
 
 def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
@@ -21,20 +21,25 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
     url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
 
-    mensaje = (
-        f"📦 *Nueva solicitud de almacén*\n\n"
-        f"👤 Solicitante: {solicitante}\n"
-        f"📂 Tipo: {tipo}\n"
-        f"📝 Ítem: {descripcion}\n"
-        f"🔢 Cantidad: {cantidad}\n\n"
-        f"⏱ Estado: PENDIENTE"
-    )
-
     payload = {
         "messaging_product": "whatsapp",
         "to": WHATSAPP_TO,
-        "type": "text",
-        "text": {"body": mensaje}
+        "type": "template",
+        "template": {
+            "name": "solicitud_almacen_nueva",
+            "language": {"code": "es"},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": solicitante},
+                        {"type": "text", "text": tipo},
+                        {"type": "text", "text": descripcion},
+                        {"type": "text", "text": str(cantidad)},
+                    ]
+                }
+            ]
+        }
     }
 
     headers = {
@@ -42,11 +47,8 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "Content-Type": "application/json"
     }
 
-    try:
-        r = requests.post(url, json=payload, headers=headers)
-        print("WhatsApp enviado:", r.status_code, r.text)
-    except Exception as e:
-        print("Error WhatsApp:", e)
+    r = requests.post(url, json=payload, headers=headers)
+    print("WhatsApp plantilla:", r.status_code, r.text)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
