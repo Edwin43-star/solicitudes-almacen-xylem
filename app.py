@@ -26,8 +26,8 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "to": WHATSAPP_TO,
         "type": "template",
         "template": {
-            "name": "solicitud_almacen_nueva",
-            "language": {"code": "es"},
+            "name": "solicitud_almacen",  # 👈 nombre EXACTO de la plantilla
+            "language": {"code": "es_PE"},
             "components": [
                 {
                     "type": "body",
@@ -35,7 +35,7 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
                         {"type": "text", "text": solicitante},
                         {"type": "text", "text": tipo},
                         {"type": "text", "text": descripcion},
-                        {"type": "text", "text": str(cantidad)},
+                        {"type": "text", "text": str(cantidad)}
                     ]
                 }
             ]
@@ -47,8 +47,11 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "Content-Type": "application/json"
     }
 
-    r = requests.post(url, json=payload, headers=headers)
-    print("WhatsApp plantilla:", r.status_code, r.text)
+    try:
+        r = requests.post(url, json=payload, headers=headers)
+        print("📨 WhatsApp enviado:", r.status_code, r.text)
+    except Exception as e:
+        print("❌ Error WhatsApp:", e)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
