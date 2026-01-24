@@ -191,17 +191,17 @@ def guardar_solicitud():
             cantidad = item.get("cantidad", "")
 
             ws.append_row([
-                fecha_str,                   # A FECHA
-                solicitante,                 # B SOLICITANTE
-                tipo,                        # C TIPO
-                descripcion,                 # D DESCRIPCION
-                cantidad,                    # E CANTIDAD
-                "PENDIENTE",                 # F ESTADO
-                "",                          # G ALMACENERO
-    ])
+                fecha_str,        # A FECHA
+                solicitante,      # B SOLICITANTE
+                tipo,             # C TIPO
+                descripcion,      # D DESCRIPCION
+                cantidad,         # E CANTIDAD
+                "PENDIENTE",      # F ESTADO
+                "",               # G ALMACENERO
+            ])
 
-    # ✅ WHATSAPP INMEDIATO AL GUARDAR
-    enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
+            # ✅ WHATSAPP INMEDIATO AL GUARDAR (POR CADA ITEM)
+            enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
