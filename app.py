@@ -26,15 +26,15 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "to": WHATSAPP_TO,
         "type": "template",
         "template": {
-            "name": "solicitud_almacen",  # 👈 nombre EXACTO de la plantilla
-            "language": {"code": "es_PE"},
+            "name": "solicitud_almacen_xylem_nueva",
+            "language": {"code": "es"},
             "components": [
                 {
                     "type": "body",
                     "parameters": [
-                        {"type": "text", "text": solicitante},
-                        {"type": "text", "text": tipo},
-                        {"type": "text", "text": descripcion},
+                        {"type": "text", "text": str(solicitante)},
+                        {"type": "text", "text": str(tipo)},
+                        {"type": "text", "text": str(descripcion)},
                         {"type": "text", "text": str(cantidad)}
                     ]
                 }
@@ -49,7 +49,7 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
     try:
         r = requests.post(url, json=payload, headers=headers)
-        print("📨 WhatsApp enviado:", r.status_code, r.text)
+        print("✅ WhatsApp plantilla enviado:", r.status_code, r.text)
     except Exception as e:
         print("❌ Error WhatsApp:", e)
 
@@ -186,23 +186,22 @@ def guardar_solicitud():
         solicitante = session.get("nombre")
 
         for item in items:
+            tipo = item.get("tipo", "")
+            descripcion = item.get("descripcion", "")
+            cantidad = item.get("cantidad", "")
+
             ws.append_row([
                 fecha_str,                   # A FECHA
                 solicitante,                 # B SOLICITANTE
-                item.get("tipo", ""),        # C TIPO
-                item.get("descripcion", ""), # D DESCRIPCION
-                item.get("cantidad", ""),    # E CANTIDAD
+                tipo,                        # C TIPO
+                descripcion,                 # D DESCRIPCION
+                cantidad,                    # E CANTIDAD
                 "PENDIENTE",                 # F ESTADO
                 "",                          # G ALMACENERO
-            ])
+    ])
 
-            # 🔔 DISPARAR WHATSAPP (UNA VEZ POR ÍTEM)
-            enviar_whatsapp(
-                solicitante,
-                item.get("tipo", ""),
-                item.get("descripcion", ""),
-                item.get("cantidad", "")
-            )
+    # ✅ WHATSAPP INMEDIATO AL GUARDAR
+    enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
