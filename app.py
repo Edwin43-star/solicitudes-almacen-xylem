@@ -189,28 +189,23 @@ def guardar_solicitud():
         lista_items = []
 
         for idx, item in enumerate(items, start=1):
-            tipo = item.get("tipo", "")
             descripcion = item.get("descripcion", "")
             cantidad = item.get("cantidad", "")
+            lista_items.append(f"✅{idx}) {descripcion} (x{cantidad})")
 
-            ws.append_row([
-                fecha_str,       # A FECHA
-                solicitante,     # B SOLICITANTE
-                tipo,            # C TIPO
-                descripcion,     # D DESCRIPCION
-                cantidad,        # E CANTIDAD
-                "PENDIENTE",     # F ESTADO
-                "",              # G ALMACENERO
-            ])
-
-            lista_items.append(f"{idx}. {descripcion} ({cantidad})")
-
-        # ✅ UN SOLO WHATSAPP
+            
+        # ✅ UN SOLO WHATSAPP (mensaje empresa 1 sola línea)
         tipo_general = items[0].get("tipo", "")
-        descripcion_lista = " - ".join(lista_items)
-        cantidad_total = len(items)
+        descripcion_lista = "  |  ".join(lista_items)
 
-        enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
+        # ✅ suma real de cantidades
+        cantidad_total = sum(int(it.get("cantidad", 0)) for it in items)
+
+        mensaje = (
+            f"🏢 *XYLEM PERÚ – UNIDAD MINERA ANTAMINA*  🔔 *NUEVA SOLICITUD DE ALMACÉN*  "
+            f"👤 Solicitante: {solicitante}  |  📦 Tipo: {tipo_general}  |  🧾 Ítems: {len(items)}  |  🔢 Total: {cantidad_total}  "
+            f"➡️ {descripcion_lista}  |  📌 Estado: *PENDIENTE*"
+        )
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
