@@ -207,7 +207,7 @@ def guardar_solicitud():
 
         # ✅ UN SOLO WHATSAPP
         tipo_general = items[0].get("tipo", "")
-        descripcion_lista = "\n".join(lista_items)
+        descripcion_lista = " - ".join(lista_items)
         cantidad_total = len(items)
 
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
