@@ -27,7 +27,7 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "type": "template",
         "template": {
             "name": "solicitud_almacen_xylem_nueva",
-            "language": {"code": "es"},
+            "language": {"code": "es_PE"},  # ✅ IMPORTANTE
             "components": [
                 {
                     "type": "body",
@@ -185,23 +185,25 @@ def guardar_solicitud():
 
         solicitante = session.get("nombre")
 
+        # ✅ guardar filas
         for item in items:
             tipo = item.get("tipo", "")
             descripcion = item.get("descripcion", "")
             cantidad = item.get("cantidad", "")
 
             ws.append_row([
-                fecha_str,        # A FECHA
-                solicitante,      # B SOLICITANTE
-                tipo,             # C TIPO
-                descripcion,      # D DESCRIPCION
-                cantidad,         # E CANTIDAD
-                "PENDIENTE",      # F ESTADO
-                "",               # G ALMACENERO
+                fecha_str,      # A FECHA
+                solicitante,    # B SOLICITANTE
+                tipo,           # C TIPO
+                descripcion,    # D DESCRIPCION
+                cantidad,       # E CANTIDAD
+                "PENDIENTE",    # F ESTADO
+                "",             # G ALMACENERO
             ])
 
-            # ✅ WHATSAPP INMEDIATO AL GUARDAR (por cada item)
-            enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
+        # ✅ WhatsApp inmediato (solo 1 mensaje con el ÚLTIMO item)
+        # (si quieres que envíe 1 por cada item, te lo adapto luego)
+        enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
