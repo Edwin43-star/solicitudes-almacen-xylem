@@ -14,7 +14,7 @@ WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
 WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
 
-def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
+enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total):
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
         print("⚠️ WhatsApp no configurado")
         return
@@ -199,7 +199,12 @@ def guardar_solicitud():
         descripcion_lista = "  |  ".join(lista_items)
 
         # ✅ suma real de cantidades
-        cantidad_total = sum(int(it.get("cantidad", 0)) for it in items)
+        cantidad_total = 0
+        for it in items:
+            try:
+                cantidad_total += int(str(it.get("cantidad", "0")).strip() or 0)
+            except:
+                cantidad_total += 0
 
         mensaje = (
             f"🏢 *XYLEM PERÚ – UNIDAD MINERA ANTAMINA*  🔔 *NUEVA SOLICITUD DE ALMACÉN*  "
@@ -207,13 +212,17 @@ def guardar_solicitud():
             f"➡️ {descripcion_lista}  |  📌 Estado: *PENDIENTE*"
         )
 
+        # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
+        enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
+
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
 
-    except Exception as e:
-        print("ERROR guardar_solicitud:", e)
-        flash(f"Error al guardar solicitud: {e}", "danger")
-        return redirect(url_for("solicitar"))
+        except Exception as e:
+            print("ERROR guardar_solicitud:", e)
+            flash(f"Error al guardar solicitud: {e}", "danger")
+            return redirect(url_for("solicitar"))
+
 
 @app.route("/bandeja")
 def bandeja():
