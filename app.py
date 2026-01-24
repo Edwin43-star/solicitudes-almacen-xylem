@@ -185,25 +185,32 @@ def guardar_solicitud():
 
         solicitante = session.get("nombre")
 
-        # ✅ guardar filas
-        for item in items:
+        # ✅ armamos 1 mensaje con lista
+        lista_items = []
+
+        for idx, item in enumerate(items, start=1):
             tipo = item.get("tipo", "")
             descripcion = item.get("descripcion", "")
             cantidad = item.get("cantidad", "")
 
             ws.append_row([
-                fecha_str,      # A FECHA
-                solicitante,    # B SOLICITANTE
-                tipo,           # C TIPO
-                descripcion,    # D DESCRIPCION
-                cantidad,       # E CANTIDAD
-                "PENDIENTE",    # F ESTADO
-                "",             # G ALMACENERO
+                fecha_str,       # A FECHA
+                solicitante,     # B SOLICITANTE
+                tipo,            # C TIPO
+                descripcion,     # D DESCRIPCION
+                cantidad,        # E CANTIDAD
+                "PENDIENTE",     # F ESTADO
+                "",              # G ALMACENERO
             ])
 
-        # ✅ WhatsApp inmediato (solo 1 mensaje con el ÚLTIMO item)
-        # (si quieres que envíe 1 por cada item, te lo adapto luego)
-        enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
+            lista_items.append(f"{idx}. {descripcion} ({cantidad})")
+
+        # ✅ UN SOLO WHATSAPP
+        tipo_general = items[0].get("tipo", "")
+        descripcion_lista = "\n".join(lista_items)
+        cantidad_total = len(items)
+
+        enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
