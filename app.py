@@ -200,7 +200,7 @@ def guardar_solicitud():
                 "",               # G ALMACENERO
             ])
 
-            # ✅ WHATSAPP INMEDIATO AL GUARDAR (POR CADA ITEM)
+            # ✅ WHATSAPP INMEDIATO AL GUARDAR (por cada item)
             enviar_whatsapp(solicitante, tipo, descripcion, cantidad)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
