@@ -14,7 +14,7 @@ WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
 WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
 
-enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total):
+def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
         print("⚠️ WhatsApp no configurado")
         return
@@ -212,16 +212,27 @@ def guardar_solicitud():
             f"➡️ {descripcion_lista}  |  📌 Estado: *PENDIENTE*"
         )
 
+        # ✅ GUARDAR EN GOOGLE SHEETS (1 fila por cada item)
+        for item in items:
+            tipo = item.get("tipo", "").strip()
+            descripcion = item.get("descripcion", "").strip()
+            cantidad = str(item.get("cantidad", "")).strip()
+
+            ws.append_row([
+                fecha_str,
+                solicitante,
+                tipo,
+                descripcion,
+                cantidad,
+                "PENDIENTE",
+                ""
+            ])
+
         # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
-
-        except Exception as e:
-            print("ERROR guardar_solicitud:", e)
-            flash(f"Error al guardar solicitud: {e}", "danger")
-            return redirect(url_for("solicitar"))
 
 
 @app.route("/bandeja")
