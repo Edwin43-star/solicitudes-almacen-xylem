@@ -234,6 +234,11 @@ def guardar_solicitud():
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
 
+    except Exception as e:
+        print("ERROR guardar_solicitud:", e)
+        flash(f"Error al guardar solicitud: {e}", "danger")
+        return redirect(url_for("solicitar"))
+
 
 @app.route("/bandeja")
 def bandeja():
