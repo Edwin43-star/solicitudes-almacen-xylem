@@ -408,13 +408,16 @@ def generar_vale(id_solicitud):
 
         items = []
         cabecera = None
+        filas_para_actualizar = []  # filas reales en sheet Solicitudes
 
-        for fila in filas[1:]:
-            if len(fila) < 10:
+        # ===============================
+        # 1) Buscar todos los items del ID_SOLICITUD
+        # ===============================
+        for idx, fila in enumerate(filas[1:], start=2):  # idx = fila real en Sheets
+            if len(fila) < 11:
                 continue
 
             if fila[0].strip() == id_solicitud.strip():
-                # A ID, B FECHA, C SOLICITANTE, D TIPO, E COD_SAP, F COD_BARRAS, G DESC, H UM, I CANT, J ESTADO, K ALMACENERO
                 if cabecera is None:
                     cabecera = {
                         "id": fila[0],
@@ -428,52 +431,74 @@ def generar_vale(id_solicitud):
                     "codigo_barras": fila[5],
                     "descripcion": fila[6],
                     "um": fila[7],
-                    "cantidad": fila[8]
+                    "cantidad": fila[8],
                 })
+
+                filas_para_actualizar.append(idx)
 
         if not items:
             flash("❌ No se encontraron items para esta solicitud", "danger")
             return redirect(url_for("bandeja"))
 
-        # ✅ LIMPIAR VALE_SALIDA
-        wsVale.batch_clear(["A2:K200"])
+        almacenero = session.get("nombre", "")
 
-        # ✅ CABECERA (provisional)
-        wsVale.update("B2", cabecera["id"])
-        wsVale.update("B3", cabecera["fecha"])
-        wsVale.update("B4", cabecera["solicitante"])
-        wsVale.update("B5", cabecera["tipo"])
-        wsVale.update("F4", session.get("nombre"))
+        # ===============================
+        # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
+        # ===============================
+        # Borra solo tabla de items (filas 8 a 22 aprox)
+        wsVale.batch_clear(["A8:F22"])
 
-        # ✅ ITEMS DESDE FILA 8
+        # ===============================
+        # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
+        # ===============================
+        # FECHA
+        wsVale.update("M2", [[cabecera["fecha"]]])
+
+        # TRABAJADOR (solicitante)
+        wsVale.update("C5", [[cabecera["solicitante"]]])
+
+        # ALMACENERO (logueado)
+        wsVale.update("E6", [[almacenero]])
+
+        # (AREA y CARGO por ahora no se llenan si no los tienes en Usuarios)
+        # wsVale.update("E5", [[""]])
+        # wsVale.update("C6", [[""]])
+
+        # ===============================
+        # 4) CARGAR ITEMS (fila 8 en adelante)
+        # ===============================
         fila_inicio = 8
         data_rows = []
+        n = 1
+
         for it in items:
             data_rows.append([
-                it["codigo_sap"],
-                it["codigo_barras"],
-                it["descripcion"],
-                it["um"],
-                it["cantidad"]
+                n,                   # A N°
+                it["codigo_sap"],     # B CODIGO
+                it["codigo_barras"],  # C CODIGO BARRAS
+                it["descripcion"],    # D DESCRIPCION
+                it["cantidad"],       # E CANT.
+                it["um"]              # F UM
             ])
+            n += 1
 
-        rango = f"A{fila_inicio}:E{fila_inicio + len(data_rows) - 1}"
+        rango = f"A{fila_inicio}:F{fila_inicio + len(data_rows) - 1}"
         wsVale.update(rango, data_rows)
 
-        flash("✅ VALE generado correctamente en hoja VALE_SALIDA", "success")
-        return redirect(url_for("vale_vista", id_solicitud=id_solicitud))
+        # ===============================
+        # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
+        # ===============================
+        # J=10 ESTADO, K=11 ALMACENERO
+        for fila_real in filas_para_actualizar:
+            wsSol.update_cell(fila_real, 10, "ATENDIDO")
+            wsSol.update_cell(fila_real, 11, almacenero)
+
+        flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
+        return redirect(url_for("bandeja"))
 
     except Exception as e:
         flash(f"❌ Error al generar vale: {e}", "danger")
         return redirect(url_for("bandeja"))
-
-
-@app.route("/vale/<id_solicitud>")
-def vale_vista(id_solicitud):
-    if "rol" not in session or session.get("rol") != "ALMACEN":
-        return redirect(url_for("login"))
-
-    return render_template("vale.html", id_solicitud=id_solicitud)
 
 
 # ===============================
