@@ -287,7 +287,7 @@ def guardar_solicitud():
 
 
 # ===============================
-# BANDEJA AGRUPADA
+# BANDEJA AGRUPADA (CORREGIDA)
 # ===============================
 @app.route("/bandeja")
 def bandeja():
@@ -297,9 +297,20 @@ def bandeja():
     ws = get_ws("Solicitudes")
     filas = ws.get_all_values()
 
-    # A ID, B FECHA, C SOLICITANTE, D TIPO, E COD_SAP, F COD_BARRAS, G DESC, H UM, I CANT, J ESTADO, K ALMACENERO
+    # A ID_SOLICITUD
+    # B FECHA
+    # C SOLICITANTE
+    # D TIPO
+    # E CODIGO_SAP
+    # F CODIGO_BARRAS
+    # G DESCRIPCION
+    # H UM
+    # I CANTIDAD
+    # J ESTADO
+    # K ALMACENERO
     grupos = defaultdict(list)
 
+    # Recorremos filas (desde la 2 porque la 1 es cabecera)
     for i, fila in enumerate(filas[1:], start=2):
         id_solicitud = fila[0] if len(fila) > 0 else ""
         fecha = fila[1] if len(fila) > 1 else ""
@@ -317,7 +328,7 @@ def bandeja():
             continue
 
         grupos[id_solicitud].append({
-            "fila": i,
+            "fila": i,  # fila real en Google Sheets (para actualizar_estado)
             "id_solicitud": id_solicitud,
             "fecha": fecha,
             "solicitante": solicitante,
@@ -331,9 +342,10 @@ def bandeja():
             "almacenero": almacenero,
         })
 
+    # Armamos lista final para la vista (agrupada)
     solicitudes_agrupadas = []
-    for id_s, items in grupos.items():
-        cab = items[0]
+    for id_s, detalle in grupos.items():
+        cab = detalle[0]
         solicitudes_agrupadas.append({
             "id_solicitud": id_s,
             "fecha": cab["fecha"],
@@ -341,9 +353,10 @@ def bandeja():
             "tipo": cab["tipo"],
             "estado": cab["estado"],
             "almacenero": cab["almacenero"],
-            "items": items,
+            "detalle": detalle,   # ✅ OJO: 'detalle' (NO 'items')
         })
 
+    # Ordenar por id desc (más reciente arriba)
     solicitudes_agrupadas = sorted(
         solicitudes_agrupadas,
         key=lambda x: x["id_solicitud"],
@@ -351,7 +364,6 @@ def bandeja():
     )
 
     return render_template("bandeja.html", solicitudes=solicitudes_agrupadas)
-
 
 # ===============================
 # ACTUALIZAR ESTADO
