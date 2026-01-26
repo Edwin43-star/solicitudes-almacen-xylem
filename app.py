@@ -212,20 +212,30 @@ def guardar_solicitud():
             f"➡️ {descripcion_lista}  |  📌 Estado: *PENDIENTE*"
         )
 
-        # ✅ GUARDAR EN GOOGLE SHEETS (1 fila por cada item)
+       # ✅ GUARDAR EN GOOGLE SHEETS (1 fila por cada item)
         for item in items:
+            codigo_sap = item.get("codigo_sap", "").strip()
+            codigo_barras = item.get("codigo_barras", "").strip()
             tipo = item.get("tipo", "").strip()
             descripcion = item.get("descripcion", "").strip()
+            um = item.get("um", "").strip()
             cantidad = str(item.get("cantidad", "")).strip()
 
+            # ✅ asegurar formato barcode con asteriscos si deseas
+            if codigo_barras and not str(codigo_barras).startswith("*"):
+                codigo_barras = f"*{codigo_barras}*"
+
             ws.append_row([
-                fecha_str,
-                solicitante,
-                tipo,
-                descripcion,
-                cantidad,
-                "PENDIENTE",
-                ""
+                fecha_str,        # A FECHA
+                solicitante,      # B SOLICITANTE
+                tipo,             # C TIPO
+                codigo_sap,       # D CODIGO_SAP
+                codigo_barras,    # E CODIGO_BARRAS
+                descripcion,      # F DESCRIPCION
+                um,               # G UM
+                cantidad,         # H CANTIDAD
+                "PENDIENTE",      # I ESTADO
+                ""                # J ALMACENERO
             ])
 
         # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
@@ -257,17 +267,23 @@ def bandeja():
         fecha = fila[0] if len(fila) > 0 else ""
         solicitante = fila[1] if len(fila) > 1 else ""
         tipo = fila[2] if len(fila) > 2 else ""
-        descripcion = fila[3] if len(fila) > 3 else ""
-        cantidad = fila[4] if len(fila) > 4 else ""
-        estado = fila[5] if len(fila) > 5 else ""
-        almacenero = fila[6] if len(fila) > 6 else ""
+        codigo_sap = fila[3] if len(fila) > 3 else ""
+        codigo_barras = fila[4] if len(fila) > 4 else ""
+        descripcion = fila[5] if len(fila) > 5 else ""
+        um = fila[6] if len(fila) > 6 else ""
+        cantidad = fila[7] if len(fila) > 7 else ""
+        estado = fila[8] if len(fila) > 8 else ""
+        almacenero = fila[9] if len(fila) > 9 else ""
 
         solicitudes.append({
             "fila": i,
             "fecha": fecha,
             "solicitante": solicitante,
             "tipo": tipo,
+            "codigo_sap": codigo_sap,
+            "codigo_barras": codigo_barras,
             "descripcion": descripcion,
+            "um": um,
             "cantidad": cantidad,
             "estado": estado,
             "almacenero": almacenero,
@@ -316,8 +332,12 @@ def api_catalogo():
 
             if activo == "SI" and tipo_fila == tipo:
                 items.append({
+                    "codigo_sap": fila.get("CODIGO", ""),
+                    "tipo": fila.get("TIPO", ""),
                     "descripcion": fila.get("DESCRIPCION", ""),
+                    "um": fila.get("U.M", ""),
                     "stock": fila.get("STOCK", ""),
+                    "codigo_barras": fila.get("CODIGO_BARRAS", "")
                 })
 
         return jsonify({"items": items})
