@@ -14,6 +14,58 @@ WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
 WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
 
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
+
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
+GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+
+
+def get_gsheet():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    credentials = Credentials.from_service_account_info(GOOGLE_CREDENTIALS, scopes=scopes)
+    client = gspread.authorize(credentials)
+    return client.open_by_key(SPREADSHEET_ID)
+
+
+def get_ws(nombre):
+    sh = get_gsheet()
+    return sh.worksheet(nombre)
+
+
+def buscar_en_catalogo(tipo, descripcion):
+    """
+    Busca en hoja Catalogo según tipo + descripcion
+    Devuelve: codigo_sap, codigo_barras, um
+    """
+    wsCat = get_ws("Catalogo")
+    filas = wsCat.get_all_records()
+
+    tipo = str(tipo).strip().upper()
+    descripcion = str(descripcion).strip().upper()
+
+    for fila in filas:
+        tipo_fila = str(fila.get("TIPO", "")).strip().upper()
+        desc_fila = str(fila.get("DESCRIPCION", "")).strip().upper()
+
+        if tipo_fila == tipo and desc_fila == descripcion:
+            codigo_sap = str(fila.get("CODIGO", "")).strip()
+            um = str(fila.get("U.M", "")).strip() or str(fila.get("UM", "")).strip()
+
+            codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
+
+            # si no hay CODIGO_BARRAS lo generamos en formato Code39
+            if (not codigo_barras) and codigo_sap:
+                codigo_barras = f"*{codigo_sap}*"
+
+            return codigo_sap, codigo_barras, um
+
+    return "", "", ""
+
+
 def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
         print("⚠️ WhatsApp no configurado")
@@ -27,7 +79,7 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "type": "template",
         "template": {
             "name": "solicitud_almacen_xylem_nueva",
-            "language": {"code": "es_PE"},  # ✅ IMPORTANTE
+            "language": {"code": "es_PE"},
             "components": [
                 {
                     "type": "body",
@@ -53,27 +105,6 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
     except Exception as e:
         print("❌ Error WhatsApp:", e)
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
-
-SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
-GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
-
-
-def get_gsheet():
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    credentials = Credentials.from_service_account_info(GOOGLE_CREDENTIALS, scopes=scopes)
-    client = gspread.authorize(credentials)
-    return client.open_by_key(SPREADSHEET_ID)
-
-
-def get_ws(nombre):
-    sh = get_gsheet()
-    return sh.worksheet(nombre)
-
 
 def get_usuario(codigo):
     ws = get_ws("Usuarios")
@@ -81,12 +112,12 @@ def get_usuario(codigo):
 
     for fila in filas:
         if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
-            # OJO: devolvemos claves "nombre" y "rol"
             return {
                 "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
                 "rol": str(fila.get("ROL", "")).strip(),
             }
     return None
+
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -100,15 +131,11 @@ def root():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # --- PERSONAL ---
         codigo_personal = request.form.get("codigo_personal", "").strip()
         nombre_personal = request.form.get("nombre_personal", "").strip()
 
-        # --- ALMACENERO ---
         almacenero = request.form.get("almacenero", "").strip()
         password = request.form.get("password", "").strip()
-
-        # ========= VALIDACIÓN =========
 
         # Almacenero
         if almacenero:
@@ -124,7 +151,7 @@ def login():
 
             return render_template("login.html", error="Contraseña incorrecta")
 
-        # Personal (con validación desde sheet Usuarios por CODIGO)
+        # Personal
         if codigo_personal:
             usuario = get_usuario(codigo_personal)
             if usuario:
@@ -133,7 +160,6 @@ def login():
                 return redirect(url_for("inicio"))
             return render_template("login.html", error="Código no registrado")
 
-        # (si quieres permitir login por nombre sin código, lo dejamos como estaba)
         if nombre_personal:
             session["rol"] = "PERSONAL"
             session["nombre"] = nombre_personal
@@ -149,11 +175,9 @@ def inicio():
     if "nombre" not in session:
         return redirect(url_for("login"))
 
-    # 🔑 ALMACENERO → BANDEJA
     if session.get("rol") == "ALMACEN":
         return redirect(url_for("bandeja"))
 
-    # 👷 PERSONAL → INICIO NORMAL
     return render_template("inicio.html")
 
 
@@ -170,7 +194,6 @@ def guardar_solicitud():
         return redirect(url_for("login"))
 
     items_json = request.form.get("items_json", "").strip()
-
     if not items_json:
         flash("No hay ítems en la solicitud", "danger")
         return redirect(url_for("solicitar"))
@@ -179,66 +202,53 @@ def guardar_solicitud():
         items = json.loads(items_json)
         ws = get_ws("Solicitudes")
 
-        # ✅ FECHA Y HORA REAL DE PERÚ
         fecha = datetime.now(ZoneInfo("America/Lima"))
         fecha_str = fecha.strftime("%d/%m/%Y %H:%M")
 
         solicitante = session.get("nombre")
 
-        # ✅ armamos 1 mensaje con lista
+        # ID único para toda la solicitud
+        id_solicitud = datetime.now(ZoneInfo("America/Lima")).strftime("%Y%m%d%H%M%S")
+
+        # WhatsApp (resumen)
         lista_items = []
-
         for idx, item in enumerate(items, start=1):
-            descripcion = item.get("descripcion", "")
-            cantidad = item.get("cantidad", "")
-            lista_items.append(f"✅{idx}) {descripcion} (x{cantidad})")
+            desc = item.get("descripcion", "")
+            cant = item.get("cantidad", "")
+            lista_items.append(f"✅{idx}) {desc} (x{cant})")
 
-            
-        # ✅ UN SOLO WHATSAPP (mensaje empresa 1 sola línea)
         tipo_general = items[0].get("tipo", "")
         descripcion_lista = "  |  ".join(lista_items)
 
-        # ✅ suma real de cantidades
         cantidad_total = 0
         for it in items:
             try:
                 cantidad_total += int(str(it.get("cantidad", "0")).strip() or 0)
             except:
-                cantidad_total += 0
+                pass
 
-        mensaje = (
-            f"🏢 *XYLEM PERÚ – UNIDAD MINERA ANTAMINA*  🔔 *NUEVA SOLICITUD DE ALMACÉN*  "
-            f"👤 Solicitante: {solicitante}  |  📦 Tipo: {tipo_general}  |  🧾 Ítems: {len(items)}  |  🔢 Total: {cantidad_total}  "
-            f"➡️ {descripcion_lista}  |  📌 Estado: *PENDIENTE*"
-        )
-
-       # ✅ GUARDAR EN GOOGLE SHEETS (1 fila por cada item)
+        # Guardar en Sheets: 1 fila por item
         for item in items:
-            codigo_sap = item.get("codigo_sap", "").strip()
-            codigo_barras = item.get("codigo_barras", "").strip()
             tipo = item.get("tipo", "").strip()
             descripcion = item.get("descripcion", "").strip()
-            um = item.get("um", "").strip()
             cantidad = str(item.get("cantidad", "")).strip()
 
-            # ✅ asegurar formato barcode con asteriscos si deseas
-            if codigo_barras and not str(codigo_barras).startswith("*"):
-                codigo_barras = f"*{codigo_barras}*"
+            codigo_sap, codigo_barras, um = buscar_en_catalogo(tipo, descripcion)
 
             ws.append_row([
-                fecha_str,        # A FECHA
-                solicitante,      # B SOLICITANTE
-                tipo,             # C TIPO
-                codigo_sap,       # D CODIGO_SAP
-                codigo_barras,    # E CODIGO_BARRAS
-                descripcion,      # F DESCRIPCION
-                um,               # G UM
-                cantidad,         # H CANTIDAD
-                "PENDIENTE",      # I ESTADO
-                ""                # J ALMACENERO
+                id_solicitud,     # A
+                fecha_str,        # B
+                solicitante,      # C
+                tipo,             # D
+                codigo_sap,       # E
+                codigo_barras,    # F
+                descripcion,      # G
+                um,               # H
+                cantidad,         # I
+                "PENDIENTE",      # J
+                ""                # K
             ])
 
-        # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
@@ -260,23 +270,23 @@ def bandeja():
 
     solicitudes = []
 
-    # Esperado:
-    # A FECHA, B SOLICITANTE, C TIPO, D DESCRIPCION, E CANTIDAD, F ESTADO, G ALMACENERO
-    for i, fila in enumerate(filas[1:], start=2):  # fila real en Sheets
-        # protege por si vienen filas cortas
-        fecha = fila[0] if len(fila) > 0 else ""
-        solicitante = fila[1] if len(fila) > 1 else ""
-        tipo = fila[2] if len(fila) > 2 else ""
-        codigo_sap = fila[3] if len(fila) > 3 else ""
-        codigo_barras = fila[4] if len(fila) > 4 else ""
-        descripcion = fila[5] if len(fila) > 5 else ""
-        um = fila[6] if len(fila) > 6 else ""
-        cantidad = fila[7] if len(fila) > 7 else ""
-        estado = fila[8] if len(fila) > 8 else ""
-        almacenero = fila[9] if len(fila) > 9 else ""
+    # A ID, B FECHA, C SOLICITANTE, D TIPO, E COD_SAP, F COD_BARRAS, G DESC, H UM, I CANT, J ESTADO, K ALMACENERO
+    for i, fila in enumerate(filas[1:], start=2):
+        id_solicitud = fila[0] if len(fila) > 0 else ""
+        fecha = fila[1] if len(fila) > 1 else ""
+        solicitante = fila[2] if len(fila) > 2 else ""
+        tipo = fila[3] if len(fila) > 3 else ""
+        codigo_sap = fila[4] if len(fila) > 4 else ""
+        codigo_barras = fila[5] if len(fila) > 5 else ""
+        descripcion = fila[6] if len(fila) > 6 else ""
+        um = fila[7] if len(fila) > 7 else ""
+        cantidad = fila[8] if len(fila) > 8 else ""
+        estado = fila[9] if len(fila) > 9 else ""
+        almacenero = fila[10] if len(fila) > 10 else ""
 
         solicitudes.append({
             "fila": i,
+            "id_solicitud": id_solicitud,
             "fecha": fecha,
             "solicitante": solicitante,
             "tipo": tipo,
@@ -304,9 +314,9 @@ def actualizar_estado():
     try:
         ws = get_ws("Solicitudes")
 
-        # Col F = ESTADO (6), Col G = ALMACENERO (7)
-        ws.update_cell(fila, 6, nuevo_estado)
-        ws.update_cell(fila, 7, almacenero)
+        # J=10 estado, K=11 almacenero
+        ws.update_cell(fila, 10, nuevo_estado)
+        ws.update_cell(fila, 11, almacenero)
 
         flash(f"Solicitud {nuevo_estado}", "success")
 
@@ -326,7 +336,6 @@ def api_catalogo():
 
         items = []
         for fila in filas:
-            # claves esperadas: TIPO, DESCRIPCION, STOCK, ACTIVO
             activo = str(fila.get("ACTIVO", "")).strip().upper()
             tipo_fila = str(fila.get("TIPO", "")).strip().upper()
 
@@ -344,7 +353,6 @@ def api_catalogo():
 
     except Exception as e:
         print("ERROR /api/catalogo:", e)
-        # 500 para que en logs se note como error real
         return jsonify({"items": [], "error": str(e)}), 500
 
 
