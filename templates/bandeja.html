@@ -1,90 +1,70 @@
-{% extends "base.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Bandeja - Solicitudes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div>
-    <h4 class="mb-0">Bandeja de Solicitudes</h4>
-    <div class="text-muted">Almacén: <b>{{ session.get("usuario","") }}</b></div>
-  </div>
+<body class="bg-light">
 
-  <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inicio') }}">
-      Inicio
-    </a>
-    <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">
-      Salir
-    </a>
-  </div>
-</div>>
+<div class="container py-4">
+  <h2 class="mb-4">📥 Bandeja de Solicitudes (Almacén)</h2>
 
-{% if error %}
-  <div class="alert alert-danger">{{ error }}</div>
-{% endif %}
+  {% for sol in solicitudes %}
+    <div class="card shadow mb-4">
+      <div class="card-header bg-dark text-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <strong>ID:</strong> {{ sol.id_solicitud }} |
+            <strong>Fecha:</strong> {{ sol.fecha }} |
+            <strong>Solicitante:</strong> {{ sol.solicitante }} |
+            <strong>Tipo:</strong> {{ sol.tipo }}
+          </div>
 
-<div class="card shadow-sm border-0">
-  <div class="card-body">
+          <form action="/generar_vale/{{ sol.id_solicitud }}" method="POST">
+            <button class="btn btn-warning btn-sm">
+              🧾 GENERAR VALE
+            </button>
+          </form>
+        </div>
+      </div>
 
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Fecha</th>
-            <th>Solicitante</th>
-            <th>Tipo</th>
-            <th>Descripción</th>
-            <th>Cant.</th>
-            <th>Estado</th>
-            <th class="text-end">Acción</th>
-          </tr>
-        </thead>
-       <tbody>
-{% if solicitudes %}
-    {% for s in solicitudes %}
-    <tr>
-        <td>{{ loop.index }}</td>
-        <td>{{ s.fecha }}</td>
-        <td>{{ s.solicitante }}</td>
-        <td><span class="badge bg-secondary">{{ s.tipo }}</span></td>
-        <td>{{ s.descripcion }}</td>
-        <td>{{ s.cantidad }}</td>
-        <td>
-            <span class="badge 
-                {% if s.estado == 'PENDIENTE' %}bg-warning
-                {% elif s.estado == 'ATENDIDO' %}bg-success
-                {% else %}bg-danger{% endif %}">
-                {{ s.estado }}
-            </span>
-        </td>
-        <td>
-            {% if s.estado == "PENDIENTE" %}
-            <form method="post" action="/actualizar_estado" style="display:inline">
-                <input type="hidden" name="fila" value="{{ s.fila }}">
-                <input type="hidden" name="estado" value="ATENDIDO">
-                <button class="btn btn-sm btn-success">Atender</button>
-            </form>
+      <div class="card-body">
+        <table class="table table-bordered table-sm">
+          <thead class="table-secondary">
+            <tr>
+              <th>COD SAP</th>
+              <th>COD BARRAS</th>
+              <th>DESCRIPCIÓN</th>
+              <th>U.M</th>
+              <th>CANT</th>
+              <th>ESTADO</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in sol.items %}
+            <tr>
+              <td>{{ it.codigo_sap }}</td>
+              <td>{{ it.codigo_barras }}</td>
+              <td>{{ it.descripcion }}</td>
+              <td>{{ it.um }}</td>
+              <td>{{ it.cantidad }}</td>
+              <td><span class="badge bg-info">{{ it.estado }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
 
-            <form method="post" action="/actualizar_estado" style="display:inline">
-                <input type="hidden" name="fila" value="{{ s.fila }}">
-                <input type="hidden" name="estado" value="RECHAZADO">
-                <button class="btn btn-sm btn-danger">Rechazar</button>
-            </form>
-            {% else %}
-                —
-            {% endif %}
-        </td>
-    </tr>
-    {% endfor %}
-{% else %}
-    <tr>
-        <td colspan="8">No hay solicitudes.</td>
-    </tr>
-{% endif %}
-</tbody>
-      </table>
+        <div class="text-end">
+          <small><strong>Almacenero:</strong> {{ sol.almacenero }}</small>
+        </div>
+      </div>
     </div>
+  {% endfor %}
 
-  </div>
+  <a href="/logout" class="btn btn-danger">Cerrar sesión</a>
 </div>
 
-{% endblock %}
+</body>
+</html>
