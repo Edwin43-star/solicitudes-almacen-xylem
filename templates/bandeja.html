@@ -2,69 +2,164 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Bandeja - Solicitudes</title>
+  <title>Bandeja - Solicitudes Almacén</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body { background: #f6f7fb; }
+    .card-header small { opacity: 0.85; }
+    .badge-estado { font-size: 0.85rem; }
+    .tabla-items td { vertical-align: middle; }
+    .codigo { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
 </head>
 
-<body class="bg-light">
+<body>
 
 <div class="container py-4">
-  <h2 class="mb-4">📥 Bandeja de Solicitudes (Almacén)</h2>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="m-0">📥 Bandeja de Solicitudes</h3>
+    <a href="/logout" class="btn btn-outline-danger btn-sm">Cerrar sesión</a>
+  </div>
+
+  {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% if mensajes %}
+      {% for cat, msg in mensajes %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if solicitudes|length == 0 %}
+    <div class="alert alert-warning">
+      No hay solicitudes registradas aún.
+    </div>
+  {% endif %}
 
   {% for sol in solicitudes %}
-    <div class="card shadow mb-4">
+
+    <!-- CARD SOLICITUD -->
+    <div class="card shadow-sm mb-4">
+
       <div class="card-header bg-dark text-white">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div>
-            <strong>ID:</strong> {{ sol.id_solicitud }} |
-            <strong>Fecha:</strong> {{ sol.fecha }} |
-            <strong>Solicitante:</strong> {{ sol.solicitante }} |
-            <strong>Tipo:</strong> {{ sol.tipo }}
+            <div class="fw-bold">🆔 ID: {{ sol.id_solicitud }}</div>
+            <small>
+              📅 {{ sol.fecha }} &nbsp; | &nbsp;
+              👤 {{ sol.solicitante }} &nbsp; | &nbsp;
+              📦 {{ sol.tipo }}
+            </small>
           </div>
 
-          <form action="/generar_vale/{{ sol.id_solicitud }}" method="POST">
-            <button class="btn btn-warning btn-sm">
-              🧾 GENERAR VALE
-            </button>
-          </form>
+          <div class="d-flex gap-2">
+            <!-- BOTÓN GENERAR VALE -->
+            <form action="/generar_vale/{{ sol.id_solicitud }}" method="POST">
+              <button class="btn btn-warning btn-sm">
+                🧾 GENERAR VALE
+              </button>
+            </form>
+
+            <!-- estado -->
+            {% set est = (sol.estado or "")|upper %}
+            {% if est == "PENDIENTE" %}
+              <span class="badge bg-warning text-dark badge-estado">PENDIENTE</span>
+            {% elif est == "ATENDIDO" %}
+              <span class="badge bg-success badge-estado">ATENDIDO</span>
+            {% elif est == "ANULADO" %}
+              <span class="badge bg-danger badge-estado">ANULADO</span>
+            {% else %}
+              <span class="badge bg-info badge-estado">{{ sol.estado }}</span>
+            {% endif %}
+          </div>
         </div>
       </div>
 
       <div class="card-body">
-        <table class="table table-bordered table-sm">
-          <thead class="table-secondary">
-            <tr>
-              <th>COD SAP</th>
-              <th>COD BARRAS</th>
-              <th>DESCRIPCIÓN</th>
-              <th>U.M</th>
-              <th>CANT</th>
-              <th>ESTADO</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for it in sol.items %}
-            <tr>
-              <td>{{ it.codigo_sap }}</td>
-              <td>{{ it.codigo_barras }}</td>
-              <td>{{ it.descripcion }}</td>
-              <td>{{ it.um }}</td>
-              <td>{{ it.cantidad }}</td>
-              <td><span class="badge bg-info">{{ it.estado }}</span></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <!-- TABLA ITEMS -->
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm tabla-items">
+            <thead class="table-secondary">
+              <tr>
+                <th style="width:110px;">COD SAP</th>
+                <th style="width:160px;">COD BARRAS</th>
+                <th>DESCRIPCIÓN</th>
+                <th style="width:80px;">U.M</th>
+                <th style="width:80px;">CANT</th>
+                <th style="width:120px;">ESTADO</th>
+                <th style="width:220px;">ACCIÓN</th>
+              </tr>
+            </thead>
 
-        <div class="text-end">
-          <small><strong>Almacenero:</strong> {{ sol.almacenero }}</small>
+            <tbody>
+
+              {# OJO: aquí usamos sol.detalle (NO sol.items) #}
+              {% for it in sol.detalle %}
+              <tr>
+                <td class="codigo">{{ it.codigo_sap }}</td>
+                <td class="codigo">{{ it.codigo_barras }}</td>
+                <td>{{ it.descripcion }}</td>
+                <td class="text-center">{{ it.um }}</td>
+                <td class="text-center fw-bold">{{ it.cantidad }}</td>
+
+                <td class="text-center">
+                  {% set e = (it.estado or "")|upper %}
+                  {% if e == "PENDIENTE" %}
+                    <span class="badge bg-warning text-dark">PENDIENTE</span>
+                  {% elif e == "ATENDIDO" %}
+                    <span class="badge bg-success">ATENDIDO</span>
+                  {% elif e == "ANULADO" %}
+                    <span class="badge bg-danger">ANULADO</span>
+                  {% else %}
+                    <span class="badge bg-info">{{ it.estado }}</span>
+                  {% endif %}
+                </td>
+
+                <!-- Actualizar estado por item -->
+                <td>
+                  <form action="/actualizar_estado" method="POST" class="d-flex gap-2">
+                    <input type="hidden" name="fila" value="{{ it.fila }}">
+
+                    <select name="estado" class="form-select form-select-sm" required>
+                      <option value="" disabled selected>Seleccionar...</option>
+                      <option value="PENDIENTE">PENDIENTE</option>
+                      <option value="ATENDIDO">ATENDIDO</option>
+                      <option value="ANULADO">ANULADO</option>
+                    </select>
+
+                    <button class="btn btn-primary btn-sm">
+                      ✅ Guardar
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-end">
+          <small class="text-muted">
+            👷 Almacenero: <strong>{{ sol.almacenero }}</strong>
+          </small>
         </div>
       </div>
+
     </div>
+
   {% endfor %}
 
-  <a href="/logout" class="btn btn-danger">Cerrar sesión</a>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
