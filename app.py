@@ -492,23 +492,21 @@ def generar_vale(id_solicitud):
         # ===============================
         # 4) CARGAR ITEMS (fila 8 en adelante)
         # ===============================
-        fila_inicio = 8
-        data_rows = []
+        fila = 8
         n = 1
 
         for it in items:
-            data_rows.append([
-                n,                   # A N°
-                it["codigo_sap"],     # B CODIGO
-                it["codigo_barras"],  # C CODIGO BARRAS
-                it["descripcion"],    # D DESCRIPCION
-                it["cantidad"],       # E CANT.
-                it["um"]              # F UM
-            ])
-            n += 1
+            wsVale.update(f"A{fila}", [[n]])                     # N°
+            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])      # CODIGO
+            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])   # CODIGO BARRAS
+            wsVale.update(f"D{fila}", [[it["descripcion"]]])     # DESCRIPCION
+            wsVale.update(f"G{fila}", [[it["cantidad"]]])        # CANT (por item)
+            wsVale.update(f"H{fila}", [[it["um"]]])              # UM (por item)
+            wsVale.update(f"I{fila}", [["NUEVO"]])               # NUEVO
+            wsVale.update(f"K{fila}", [["CAMBIO"]])              # CAMBIO
 
-        rango = f"A{fila_inicio}:F{fila_inicio + len(data_rows) - 1}"
-        wsVale.update(rango, data_rows)
+            fila += 1
+            n += 1
 
         # ===============================
         # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
