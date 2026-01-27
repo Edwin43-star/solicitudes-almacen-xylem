@@ -44,13 +44,8 @@ def get_ws(nombre):
 
 
 def url_vale_sheets():
-    # Abre directo la pestaña VALE_SALIDA por gid
+    # abre directamente la hoja VALE_SALIDA
     return f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid={VALE_GID}"
-
-
-def ws_set(ws, a1, value):
-    """Escritura segura (gspread espera matriz)."""
-    ws.update(a1, [[value]], value_input_option="USER_ENTERED")
 
 
 # ===============================
@@ -73,7 +68,6 @@ def buscar_en_catalogo(tipo, descripcion):
 
             codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
             if not codigo_barras and codigo_sap:
-                # Code39
                 codigo_barras = f"*{codigo_sap}*"
 
             return codigo_sap, codigo_barras, um
@@ -105,16 +99,16 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
                         {"type": "text", "text": str(solicitante)},
                         {"type": "text", "text": str(tipo)},
                         {"type": "text", "text": str(descripcion)},
-                        {"type": "text", "text": str(cantidad)},
-                    ],
+                        {"type": "text", "text": str(cantidad)}
+                    ]
                 }
-            ],
-        },
+            ]
+        }
     }
 
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
 
     try:
@@ -141,6 +135,9 @@ def get_usuario(codigo):
 
 
 def buscar_datos_usuario_por_nombre(nombre):
+    """
+    Devuelve: codigo, area, cargo
+    """
     if not nombre:
         return "", "", ""
 
@@ -151,6 +148,7 @@ def buscar_datos_usuario_por_nombre(nombre):
     for fila in filas:
         n1 = str(fila.get("NOMBRE", "")).strip().upper()
         n2 = str(fila.get("NOMBRE COMPLETO", "")).strip().upper()
+
         if nombre_u == n1 or nombre_u == n2:
             codigo = str(fila.get("CODIGO", "")).strip()
             area = str(fila.get("AREA", "")).strip()
@@ -250,7 +248,7 @@ def guardar_solicitud():
         for idx, item in enumerate(items, start=1):
             descripcion = item.get("descripcion", "")
             cantidad = item.get("cantidad", "")
-            lista_items.append(f"✅{idx}) {descripcion} (x{cantidad})")
+            lista_items.append(f"{idx}) {descripcion} (x{cantidad})")
 
         tipo_general = items[0].get("tipo", "")
         descripcion_lista = "  |  ".join(lista_items)
@@ -269,21 +267,19 @@ def guardar_solicitud():
 
             codigo_sap, codigo_barras, um = buscar_en_catalogo(tipo, descripcion)
 
-            ws.append_row(
-                [
-                    id_solicitud,
-                    fecha_str,
-                    solicitante,
-                    tipo,
-                    codigo_sap,
-                    codigo_barras,
-                    descripcion,
-                    um,
-                    cantidad,
-                    "PENDIENTE",
-                    "",
-                ]
-            )
+            ws.append_row([
+                id_solicitud,
+                fecha_str,
+                solicitante,
+                tipo,
+                codigo_sap,
+                codigo_barras,
+                descripcion,
+                um,
+                cantidad,
+                "PENDIENTE",
+                ""
+            ])
 
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
@@ -297,7 +293,7 @@ def guardar_solicitud():
 
 
 # ===============================
-# BANDEJA
+# BANDEJA (AGRUPADA)
 # ===============================
 @app.route("/bandeja")
 def bandeja():
@@ -314,33 +310,20 @@ def bandeja():
         if id_solicitud.strip() == "":
             continue
 
-        fecha = fila[1] if len(fila) > 1 else ""
-        solicitante = fila[2] if len(fila) > 2 else ""
-        tipo = fila[3] if len(fila) > 3 else ""
-        codigo_sap = fila[4] if len(fila) > 4 else ""
-        codigo_barras = fila[5] if len(fila) > 5 else ""
-        descripcion = fila[6] if len(fila) > 6 else ""
-        um = fila[7] if len(fila) > 7 else ""
-        cantidad = fila[8] if len(fila) > 8 else ""
-        estado = fila[9] if len(fila) > 9 else ""
-        almacenero = fila[10] if len(fila) > 10 else ""
-
-        grupos[id_solicitud].append(
-            {
-                "fila": i,
-                "id_solicitud": id_solicitud,
-                "fecha": fecha,
-                "solicitante": solicitante,
-                "tipo": tipo,
-                "codigo_sap": codigo_sap,
-                "codigo_barras": codigo_barras,
-                "descripcion": descripcion,
-                "um": um,
-                "cantidad": cantidad,
-                "estado": estado,
-                "almacenero": almacenero,
-            }
-        )
+        grupos[id_solicitud].append({
+            "fila": i,
+            "id_solicitud": id_solicitud,
+            "fecha": fila[1] if len(fila) > 1 else "",
+            "solicitante": fila[2] if len(fila) > 2 else "",
+            "tipo": fila[3] if len(fila) > 3 else "",
+            "codigo_sap": fila[4] if len(fila) > 4 else "",
+            "codigo_barras": fila[5] if len(fila) > 5 else "",
+            "descripcion": fila[6] if len(fila) > 6 else "",
+            "um": fila[7] if len(fila) > 7 else "",
+            "cantidad": fila[8] if len(fila) > 8 else "",
+            "estado": fila[9] if len(fila) > 9 else "",
+            "almacenero": fila[10] if len(fila) > 10 else "",
+        })
 
     solicitudes_agrupadas = []
     for id_s, detalle in grupos.items():
@@ -356,26 +339,26 @@ def bandeja():
                 alm_cab = str(it.get("almacenero", "")).strip()
                 break
 
-        solicitudes_agrupadas.append(
-            {
-                "id_solicitud": id_s,
-                "fecha": cab.get("fecha", ""),
-                "solicitante": cab.get("solicitante", ""),
-                "tipo": cab.get("tipo", ""),
-                "estado": estado_cab,
-                "almacenero": alm_cab,
-                "detalle": detalle,
-            }
-        )
+        solicitudes_agrupadas.append({
+            "id_solicitud": id_s,
+            "fecha": cab.get("fecha", ""),
+            "solicitante": cab.get("solicitante", ""),
+            "tipo": cab.get("tipo", ""),
+            "estado": estado_cab,
+            "almacenero": alm_cab,
+            "detalle": detalle
+        })
 
-    solicitudes_agrupadas = sorted(solicitudes_agrupadas, key=lambda x: x["id_solicitud"], reverse=True)
+    solicitudes_agrupadas = sorted(
+        solicitudes_agrupadas,
+        key=lambda x: x["id_solicitud"],
+        reverse=True
+    )
 
     return render_template(
         "bandeja.html",
         solicitudes=solicitudes_agrupadas,
-        spreadsheet_id=SPREADSHEET_ID,
-        vale_gid=VALE_GID,
-        vale_url=url_vale_sheets(),
+        vale_url=url_vale_sheets()
     )
 
 
@@ -390,7 +373,6 @@ def generar_vale(id_solicitud):
     try:
         wsSol = get_ws("Solicitudes")
         wsVale = get_ws("VALE_SALIDA")
-
         filas = wsSol.get_all_values()
 
         items = []
@@ -407,143 +389,103 @@ def generar_vale(id_solicitud):
                         "id": fila[0],
                         "fecha": fila[1],
                         "solicitante": fila[2],
-                        "tipo": fila[3],
+                        "tipo": fila[3]
                     }
 
-                items.append(
-                    {
-                        "codigo_sap": fila[4],
-                        "codigo_barras": fila[5],
-                        "descripcion": fila[6],
-                        "um": fila[7],
-                        "cantidad": fila[8],
-                    }
-                )
+                items.append({
+                    "codigo_sap": fila[4],
+                    "codigo_barras": fila[5],
+                    "descripcion": fila[6],
+                    "um": fila[7],
+                    "cantidad": fila[8],
+                })
 
                 filas_a_actualizar.append(idx)
 
         if not items or cabecera is None:
-            msg = "❌ No se encontraron items para esta solicitud"
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({"ok": False, "error": msg}), 400
-            flash(msg, "danger")
+            flash("❌ No se encontraron items para esta solicitud", "danger")
             return redirect(url_for("bandeja"))
 
         almacenero = session.get("nombre", "").strip()
-
-        # ==========================================
-        # 1) LIMPIAR DETALLE (sin tocar etiquetas)
-        #    (OJO: en combinadas, limpiar la celda "arriba-izq" es suficiente)
-        # ==========================================
-        clear_ranges = [
-            "A8:A22",  # N°
-            "B8:B22",  # CODIGO
-            "C8:C22",  # COD BARRAS
-            "D8:D22",  # DESCRIPCION (D-E-F combinadas -> se escribe/limpia en D)
-            "G8:G22",  # CANT
-            "H8:H22",  # UM
-            "I8:I22",  # NUEVO
-            "J8:J22",  # CAMBIO
-            "K8:K22",  # (por si existe una 3ra col en motivo)
-        ]
-        wsVale.batch_clear(clear_ranges)
-
-        # ==========================================
-        # 2) CABECERA (ajusta aquí si tu plantilla usa otras celdas)
-        #    - En combinadas escribe en la 1ra celda (arriba-izq)
-        # ==========================================
-        fecha_vale = datetime.now(ZoneInfo("America/Lima")).strftime("%d/%m/%Y %H:%M")
-        solicitante = cabecera.get("solicitante", "")
+        solicitante = cabecera.get("solicitante", "").strip()
 
         codigo_trab, area, cargo = buscar_datos_usuario_por_nombre(solicitante)
 
-        # FECHA (J-K-L combinadas -> J3)
-        ws_set(wsVale, "J3", fecha_vale)
+        # ✅ LIMPIAR SOLO DETALLE (NO borrar cabecera)
+        # tu tabla va desde A8 hasta K22 aprox.
+        wsVale.batch_clear(["A8:K22"])
 
-        # CODIGO trabajador (si tu CODIGO está en B5)
-        ws_set(wsVale, "B5", codigo_trab)
+        # ✅ CABECERA (celdas combinadas se llenan escribiendo en la primera celda del merge)
+        fecha_vale = datetime.now(ZoneInfo("America/Lima")).strftime("%d/%m/%Y %H:%M")
 
-        # TRABAJADOR (D-E-F combinadas -> D5)
-        ws_set(wsVale, "D5", solicitante)
+        # FECHA (J2-K2-L2 en merge: escribir en J2 o J3 según tu plantilla)
+        wsVale.update("J3", fecha_vale)
 
-        # CARGO (B-C-D combinadas -> B6)
-        ws_set(wsVale, "B6", cargo)
+        # CODIGO trabajador
+        wsVale.update("B5", codigo_trab)
 
-        # AREA (si está combinada en E-F -> E6)
-        ws_set(wsVale, "E6", area)
+        # TRABAJADOR (merge D5:E5:F5) -> escribir en D5
+        wsVale.update("D5", solicitante)
 
-        # ALMACENERO (IMPORTANTE: NO escribir donde dice "ALMACENERO")
-        # En tu plantilla normalmente el nombre está a la derecha/abajo del rótulo.
-        # Prueba con H6. Si tu nombre va en otra celda, cámbiala aquí.
-        ws_set(wsVale, "H6", almacenero)
+        # CARGO (merge B6:C6:D6) -> escribir en B6
+        wsVale.update("B6", cargo)
 
-        # ==========================================
-        # 3) ITEMS (escribimos por celda para no romper combinadas)
-        # ==========================================
-        updates = []
+        # AREA (merge D6:E6:F6) -> escribir en D6
+        wsVale.update("D6", area)
+
+        # ALMACENERO (tu plantilla: el nombre va en G6 según tu captura)
+        wsVale.update("G6", almacenero)
+
+        # ✅ ITEMS
+        # Columnas:
+        # A N°
+        # B CODIGO
+        # C CODIGO BARRAS
+        # D DESCRIPCION (merge D:E:F) -> escribir en D
+        # G CANT
+        # H UM
+        # I "NUEVO"
+        # J "CAMBIO"
         fila_inicio = 8
+        data_rows = []
 
         for n, it in enumerate(items, start=1):
-            r = fila_inicio + (n - 1)
-
             cb = str(it.get("codigo_barras", "")).strip()
+            # para mostrar en barras: *CODIGO*
             if cb and not (cb.startswith("*") and cb.endswith("*")):
                 cb = f"*{cb}*"
 
-            codigo_sap = str(it.get("codigo_sap", "")).strip()
-            desc = str(it.get("descripcion", "")).strip()
-            cant = str(it.get("cantidad", "")).strip()
-            um = str(it.get("um", "")).strip()
+            data_rows.append([
+                n,
+                str(it.get("codigo_sap", "")).strip(),
+                cb,
+                str(it.get("descripcion", "")).strip(),
+                "",  # E (parte del merge de descripcion)
+                "",  # F (parte del merge de descripcion)
+                str(it.get("cantidad", "")).strip(),
+                str(it.get("um", "")).strip(),
+                "NUEVO",
+                "CAMBIO",
+                ""   # K (PERDIDA queda vacío)
+            ])
 
-            # A: N°
-            updates.append({"range": f"A{r}", "values": [[n]]})
+        # rango debe ser exacto al tamaño: A..K
+        rango = f"A{fila_inicio}:K{fila_inicio + len(data_rows) - 1}"
+        wsVale.update(rango, data_rows, value_input_option="USER_ENTERED")
 
-            # B: CODIGO
-            updates.append({"range": f"B{r}", "values": [[codigo_sap]]})
-
-            # C: COD BARRAS
-            updates.append({"range": f"C{r}", "values": [[cb]]})
-
-            # D (D-E-F combinadas): DESCRIPCION
-            updates.append({"range": f"D{r}", "values": [[desc]]})
-
-            # G: CANT
-            updates.append({"range": f"G{r}", "values": [[cant]]})
-
-            # H: UM
-            updates.append({"range": f"H{r}", "values": [[um]]})
-
-            # MOTIVO (texto para marcar a mano)
-            updates.append({"range": f"I{r}", "values": [["NUEVO"]]})
-            updates.append({"range": f"J{r}", "values": [["CAMBIO"]]})
-
-        if updates:
-            wsVale.batch_update(updates, value_input_option="USER_ENTERED")
-
-        # ==========================================
-        # 4) MARCAR ATENDIDO EN SOLICITUDES (todas filas del ID)
-        # ==========================================
+        # ✅ MARCAR ATENDIDO en todas filas de ese ID
         batch_updates = []
-        for rr in filas_a_actualizar:
-            batch_updates.append({"range": f"J{rr}", "values": [["ATENDIDO"]]})
-            batch_updates.append({"range": f"K{rr}", "values": [[almacenero]]})
+        for r in filas_a_actualizar:
+            batch_updates.append({"range": f"J{r}", "values": [["ATENDIDO"]]})
+            batch_updates.append({"range": f"K{r}", "values": [[almacenero]]})
 
         wsSol.batch_update(batch_updates, value_input_option="USER_ENTERED")
-
-        vale_url = url_vale_sheets()
-
-        # AJAX
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return jsonify({"ok": True, "vale_url": vale_url})
 
         flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
         return redirect(url_for("bandeja"))
 
     except Exception as e:
-        err = f"❌ Error al generar vale: {e}"
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return jsonify({"ok": False, "error": err}), 500
-        flash(err, "danger")
+        flash(f"❌ Error al generar vale: {e}", "danger")
         return redirect(url_for("bandeja"))
 
 
@@ -564,16 +506,14 @@ def api_catalogo():
             tipo_fila = str(fila.get("TIPO", "")).strip().upper()
 
             if activo == "SI" and tipo_fila == tipo:
-                items.append(
-                    {
-                        "codigo_sap": fila.get("CODIGO", ""),
-                        "tipo": fila.get("TIPO", ""),
-                        "descripcion": fila.get("DESCRIPCION", ""),
-                        "um": fila.get("U.M", ""),
-                        "stock": fila.get("STOCK", ""),
-                        "codigo_barras": fila.get("CODIGO_BARRAS", ""),
-                    }
-                )
+                items.append({
+                    "codigo_sap": fila.get("CODIGO", ""),
+                    "tipo": fila.get("TIPO", ""),
+                    "descripcion": fila.get("DESCRIPCION", ""),
+                    "um": fila.get("U.M", ""),
+                    "stock": fila.get("STOCK", ""),
+                    "codigo_barras": fila.get("CODIGO_BARRAS", "")
+                })
 
         return jsonify({"items": items})
 
@@ -590,177 +530,3 @@ def logout():
 
 if __name__ == "__main__":
     app.run(debug=True)
-✅ bandeja.html (copia y pega completo)
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bandeja - Solicitudes</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <style>
-    body { background: #f4f6f9; }
-    .hdr-dark { background:#212529; color:#fff; border-radius:10px 10px 0 0; }
-    .card { border:0; border-radius: 12px; overflow:hidden; }
-    .badge-estado { font-size: .85rem; padding: .5rem .75rem; border-radius: .6rem; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .btn { border-radius: 10px; }
-    .table thead th { background:#e9ecef; }
-  </style>
-</head>
-
-<body class="py-4">
-<div class="container">
-
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="m-0">📥 Bandeja de Solicitudes</h2>
-    <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Cerrar sesión</a>
-  </div>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for cat, msg in messages %}
-        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
-          {{ msg }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-  {% if not solicitudes %}
-    <div class="alert alert-info">No hay solicitudes registradas.</div>
-  {% endif %}
-
-  {% for sol in solicitudes %}
-    {% set est = (sol.estado or "")|upper %}
-
-    <div class="card shadow-sm mb-4">
-      <div class="card-header hdr-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="d-flex align-items-center flex-wrap gap-3">
-          <span class="badge bg-primary">ID</span>
-          <div class="fw-bold mono">ID: {{ sol.id_solicitud }}</div>
-          <div class="text-white-50">({{ sol.detalle|length }} items)</div>
-
-          <div class="text-white-50">📅 {{ sol.fecha }}</div>
-          <div class="text-white-50">👤 {{ sol.solicitante }}</div>
-          <div class="text-white-50">📦 {{ sol.tipo }}</div>
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-          {% if est == "ATENDIDO" %}
-            <a class="btn btn-primary btn-sm"
-               href="{{ vale_url }}"
-               target="_blank">📄 VER VALE</a>
-
-            <button class="btn btn-secondary btn-sm" disabled title="Esta solicitud ya fue atendida">
-              ✅ YA ATENDIDO
-            </button>
-          {% else %}
-            <button class="btn btn-warning btn-sm"
-                    id="btnGen{{ sol.id_solicitud }}"
-                    onclick="generarVale('{{ sol.id_solicitud }}')">
-              🧾 GENERAR VALE
-            </button>
-          {% endif %}
-
-          <!-- BADGE ESTADO -->
-          {% if est == "PENDIENTE" %}
-            <span class="badge bg-warning text-dark badge-estado">PENDIENTE</span>
-          {% elif est == "ATENDIDO" %}
-            <span class="badge bg-success badge-estado">ATENDIDO</span>
-          {% elif est == "ANULADO" %}
-            <span class="badge bg-danger badge-estado">ANULADO</span>
-          {% else %}
-            <span class="badge bg-info badge-estado">{{ sol.estado }}</span>
-          {% endif %}
-        </div>
-      </div>
-
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-bordered align-middle">
-            <thead>
-              <tr>
-                <th style="width:160px">COD SAP</th>
-                <th style="width:200px">COD BARRAS</th>
-                <th>DESCRIPCIÓN</th>
-                <th style="width:90px" class="text-center">U.M</th>
-                <th style="width:90px" class="text-center">CANT</th>
-                <th style="width:110px" class="text-center">ESTADO</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for it in sol.detalle %}
-                {% set ei = (it.estado or "")|upper %}
-                <tr>
-                  <td class="mono">{{ it.codigo_sap }}</td>
-                  <td class="mono">{{ it.codigo_barras }}</td>
-                  <td>{{ it.descripcion }}</td>
-                  <td class="text-center">{{ it.um }}</td>
-                  <td class="text-center fw-bold">{{ it.cantidad }}</td>
-                  <td class="text-center">
-                    {% if ei == "PENDIENTE" %}
-                      <span class="badge bg-warning text-dark">PENDIENTE</span>
-                    {% elif ei == "ATENDIDO" %}
-                      <span class="badge bg-success">ATENDIDO</span>
-                    {% elif ei == "ANULADO" %}
-                      <span class="badge bg-danger">ANULADO</span>
-                    {% else %}
-                      <span class="badge bg-secondary">{{ it.estado }}</span>
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="text-end small text-muted">
-          🧑‍💼 Almacenero: <span class="fw-semibold">{{ sol.almacenero or "-" }}</span>
-        </div>
-      </div>
-    </div>
-  {% endfor %}
-
-</div>
-
-<script>
-async function generarVale(idSolicitud) {
-  const ok = confirm("¿Generar VALE para la solicitud: " + idSolicitud + " ?");
-  if (!ok) return;
-
-  const btn = document.getElementById("btnGen" + idSolicitud);
-  if (btn) { btn.disabled = true; btn.innerText = "Generando..."; }
-
-  try {
-    const res = await fetch("/generar_vale/" + idSolicitud, {
-      method: "POST",
-      headers: {"X-Requested-With": "XMLHttpRequest"}
-    });
-
-    const data = await res.json().catch(() => ({ok:false, error:"Respuesta inválida del servidor"}));
-
-    if (!res.ok || !data.ok) {
-      alert(data.error || "Error al generar vale");
-      if (btn) { btn.disabled = false; btn.innerText = "🧾 GENERAR VALE"; }
-      return;
-    }
-
-    // Abre el VALE directo en otra pestaña
-    window.open(data.vale_url, "_blank");
-
-    // Recarga para que cambie a ATENDIDO y aparezca VER VALE
-    window.location.reload();
-
-  } catch (e) {
-    alert("Error: " + e);
-    if (btn) { btn.disabled = false; btn.innerText = "🧾 GENERAR VALE"; }
-  }
-}
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
