@@ -430,9 +430,9 @@ def generar_vale(id_solicitud):
         wsVale.update("D5", [[solicitante]])
         wsVale.update("B6", [[cargo]])
         wsVale.update("F6", [[area]])
-        wsVale.update("G5", [[almacenero]])  # No borra el título "ALMACENERO"
+        wsVale.update("G5", [[almacenero]])  # almacenero
 
-        # ✅ ITEMS + NUEVO + CAMBIO
+        # ✅ ITEMS (CORRECTO, SIN NUEVO/CAMBIO)
         fila_inicio = 8
         data_rows = []
 
@@ -440,19 +440,18 @@ def generar_vale(id_solicitud):
             cb = str(it.get("codigo_barras", "")).strip()
 
             # Forzar a formato barras: *CODIGO*
-            if cb:
-                if not (cb.startswith("*") and cb.endswith("*")):
-                    cb = f"*{cb}*"
+            if cb and not (cb.startswith("*") and cb.endswith("*")):
+                cb = f"*{cb}*"
 
             data_rows.append([
                 n,                                       # A N°
                 str(it.get("codigo_sap", "")).strip(),   # B CODIGO
                 cb,                                      # C CODIGO BARRAS
                 str(it.get("descripcion", "")).strip(),  # D DESCRIPCION
+                "",                                      # E (vacío)
+                "",                                      # F (vacío)
                 str(it.get("cantidad", "")).strip(),     # G CANT
                 str(it.get("um", "")).strip(),           # H UM
-                "NUEVO",                                  # I
-                "CAMBIO"                                  # K
             ])
 
         # A-H
@@ -467,47 +466,15 @@ def generar_vale(id_solicitud):
 
         wsSol.batch_update(batch_updates, value_input_option="USER_ENTERED")
 
-        flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
+        # ✅ MENSAJE QUE PIDES
+        flash("✅ ATENDIDO y VALE GENERADO", "success")
 
-        # ✅ REDIRECCIONAR DIRECTO AL VALE (Google Sheets hoja VALE)
-        return redirect(url_vale_sheets())
+        # ✅ VOLVER A BANDEJA
+        return redirect(url_for("bandeja"))
 
     except Exception as e:
         flash(f"❌ Error al generar vale: {e}", "danger")
         return redirect(url_for("bandeja"))
-
-
-# ===============================
-# API CATALOGO
-# ===============================
-@app.route("/api/catalogo")
-def api_catalogo():
-    tipo = request.args.get("tipo", "").strip().upper()
-
-    try:
-        ws = get_ws("Catalogo")
-        filas = ws.get_all_records()
-
-        items = []
-        for fila in filas:
-            activo = str(fila.get("ACTIVO", "")).strip().upper()
-            tipo_fila = str(fila.get("TIPO", "")).strip().upper()
-
-            if activo == "SI" and tipo_fila == tipo:
-                items.append({
-                    "codigo_sap": fila.get("CODIGO", ""),
-                    "tipo": fila.get("TIPO", ""),
-                    "descripcion": fila.get("DESCRIPCION", ""),
-                    "um": fila.get("U.M", ""),
-                    "stock": fila.get("STOCK", ""),
-                    "codigo_barras": fila.get("CODIGO_BARRAS", "")
-                })
-
-        return jsonify({"items": items})
-
-    except Exception as e:
-        print("ERROR /api/catalogo:", e)
-        return jsonify({"items": [], "error": str(e)}), 500
 
 
 @app.route("/logout")
