@@ -457,10 +457,10 @@ def generar_vale(id_solicitud):
         wsVale.update("J3", [[cabecera["fecha"]]])
 
         # TRABAJADOR (solicitante)
-        wsVale.update("D5", [[cabecera["solicitante"]]])
+        wsVale.update("C5", [[cabecera["solicitante"]]])
 
         # ALMACENERO (logueado)
-        wsVale.update("G5", [[almacenero]])
+        wsVale.update("F5", [[almacenero]])
 
         # ===============================
         # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
