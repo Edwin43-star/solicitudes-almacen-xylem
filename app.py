@@ -50,28 +50,35 @@ def url_vale_sheets():
 # ===============================
 # CATALOGO
 # ===============================
-def buscar_en_catalogo(tipo, descripcion):
-    wsCat = get_ws("Catalogo")
-    filas = wsCat.get_all_records()
+@app.route("/api/catalogo")
+def api_catalogo():
+    try:
+        tipo = request.args.get("tipo", "").strip().upper()
+        if not tipo:
+            return jsonify({"items": []})
 
-    tipo = str(tipo).strip().upper()
-    descripcion = str(descripcion).strip().upper()
+        ws = get_ws("Catalogo")
+        filas = ws.get_all_records()
 
-    for fila in filas:
-        tipo_fila = str(fila.get("TIPO", "")).strip().upper()
-        desc_fila = str(fila.get("DESCRIPCION", "")).strip().upper()
+        items = []
+        for fila in filas:
+            activo = str(fila.get("ACTIVO", "")).strip().upper()
+            tipo_fila = str(fila.get("TIPO", "")).strip().upper()
 
-        if tipo_fila == tipo and desc_fila == descripcion:
-            codigo_sap = str(fila.get("CODIGO", "")).strip()
-            um = str(fila.get("U.M", "")).strip() or str(fila.get("UM", "")).strip()
+            if activo == "SI" and tipo_fila == tipo:
+                items.append({
+                    "codigo_sap": fila.get("CODIGO", ""),
+                    "tipo": fila.get("TIPO", ""),
+                    "descripcion": fila.get("DESCRIPCION", ""),
+                    "um": fila.get("U.M", ""),
+                    "stock": fila.get("STOCK", "")
+                })
 
-            codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
-            if not codigo_barras and codigo_sap:
-                codigo_barras = f"*{codigo_sap}*"
+        return jsonify({"items": items})
 
-            return codigo_sap, codigo_barras, um
-
-    return "", "", ""
+    except Exception as e:
+        print("ERROR /api/catalogo:", e)
+        return jsonify({"items": [], "error": str(e)}), 500
 
 
 # ===============================
