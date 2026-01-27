@@ -40,17 +40,23 @@
 
           {% set est = (sol.estado or "")|upper %}
           {% if est == "ATENDIDO" %}
-            <a class="btn btn-primary btn-sm" href="{{ vale_url }}" target="_blank">
-              📄 VER VALE
-            </a>
+
+            <!-- BOTÓN DESACTIVADO -->
+            <button class="btn btn-secondary btn-sm" disabled title="Solicitud ya atendida">
+              📄 GENERAR VALE
+            </button>
+
             <span class="badge bg-success px-3 py-2">ATENDIDO</span>
+
           {% else %}
+
             <form action="/generar_vale/{{ sol.id_solicitud }}" method="POST" class="m-0">
               <button class="btn btn-warning btn-sm">
                 📄 GENERAR VALE
               </button>
             </form>
             <span class="badge bg-warning text-dark px-3 py-2">PENDIENTE</span>
+
           {% endif %}
 
         </div>
