@@ -429,7 +429,7 @@ def generar_vale(id_solicitud):
         wsVale.update("B5", [[codigo_trab]])
         wsVale.update("D5", [[solicitante]])
         wsVale.update("B6", [[cargo]])
-        wsVale.update("D6", [[area]])
+        wsVale.update("F6", [[area]])
         wsVale.update("G5", [[almacenero]])  # No borra el título "ALMACENERO"
 
         # ✅ ITEMS + NUEVO + CAMBIO
@@ -449,10 +449,10 @@ def generar_vale(id_solicitud):
                 str(it.get("codigo_sap", "")).strip(),   # B CODIGO
                 cb,                                      # C CODIGO BARRAS
                 str(it.get("descripcion", "")).strip(),  # D DESCRIPCION
-                str(it.get("cantidad", "")).strip(),     # E CANT
-                str(it.get("um", "")).strip(),           # F UM
-                "NUEVO",                                  # G
-                "CAMBIO"                                  # H
+                str(it.get("cantidad", "")).strip(),     # G CANT
+                str(it.get("um", "")).strip(),           # H UM
+                "NUEVO",                                  # I
+                "CAMBIO"                                  # K
             ])
 
         # A-H
