@@ -13,13 +13,16 @@ from collections import defaultdict
 # ===============================
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
-WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
+WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # ej: 51939947031
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
 
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+
+# ✅ GID de la hoja VALE_SALIDA (según tu captura)
+GID_VALE_SALIDA = "1184202075"
 
 
 # ===============================
@@ -63,16 +66,63 @@ def buscar_en_catalogo(tipo, descripcion):
 
             um = str(fila.get("U.M", "")).strip() or str(fila.get("UM", "")).strip()
 
-            # CODIGO_BARRAS puede estar guardado o lo generamos automático
+            # CODIGO_BARRAS (si no existe se genera Code39)
             codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
-
             if not codigo_barras and codigo_sap:
-                # Formato Code39 para lectura con Free 3 of 9
                 codigo_barras = f"*{codigo_sap}*"
 
             return codigo_sap, codigo_barras, um
 
     return "", "", ""
+
+
+# ===============================
+# USUARIOS (AREA Y CARGO)
+# ===============================
+def get_area_cargo_por_nombre(nombre):
+    """
+    Busca en hoja Usuarios:
+    B = NOMBRE
+    C = AREA
+    D = CARGO
+    E = ACTIVO
+    """
+    ws = get_ws("Usuarios")
+    filas = ws.get_all_records()
+
+    nombre = str(nombre).strip().upper()
+
+    for fila in filas:
+        nombre_fila = str(fila.get("NOMBRE", "")).strip().upper()
+        activo = str(fila.get("ACTIVO", "")).strip().upper()
+
+        if activo == "SI" and nombre_fila == nombre:
+            area = str(fila.get("AREA", "")).strip()
+            cargo = str(fila.get("CARGO", "")).strip()
+            return area, cargo
+
+    return "", ""
+
+
+def get_usuario(codigo):
+    """
+    Retorna usuario por CODIGO
+    (si tu hoja Usuarios tiene 'NOMBRE COMPLETO', se usa; si no, usa NOMBRE)
+    """
+    ws = get_ws("Usuarios")
+    filas = ws.get_all_records()
+
+    for fila in filas:
+        if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
+            nombre = str(fila.get("NOMBRE COMPLETO", "")).strip()
+            if not nombre:
+                nombre = str(fila.get("NOMBRE", "")).strip()
+
+            return {
+                "nombre": nombre,
+                "rol": str(fila.get("ROL", "")).strip() if fila.get("ROL") else "PERSONAL",
+            }
+    return None
 
 
 # ===============================
@@ -119,22 +169,6 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
 
 # ===============================
-# USUARIOS
-# ===============================
-def get_usuario(codigo):
-    ws = get_ws("Usuarios")
-    filas = ws.get_all_records()
-
-    for fila in filas:
-        if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
-            return {
-                "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
-                "rol": str(fila.get("ROL", "")).strip(),
-            }
-    return None
-
-
-# ===============================
 # RUTAS PRINCIPALES
 # ===============================
 @app.route("/", methods=["GET"])
@@ -169,7 +203,7 @@ def login():
 
             return render_template("login.html", error="Contraseña incorrecta")
 
-        # Personal (con validación desde sheet Usuarios por CODIGO)
+        # Personal por CODIGO
         if codigo_personal:
             usuario = get_usuario(codigo_personal)
             if usuario:
@@ -178,7 +212,7 @@ def login():
                 return redirect(url_for("inicio"))
             return render_template("login.html", error="Código no registrado")
 
-        # Login por nombre sin código
+        # Personal por nombre manual
         if nombre_personal:
             session["rol"] = "PERSONAL"
             session["nombre"] = nombre_personal
@@ -194,11 +228,9 @@ def inicio():
     if "nombre" not in session:
         return redirect(url_for("login"))
 
-    # 🔑 ALMACENERO → BANDEJA
     if session.get("rol") == "ALMACEN":
         return redirect(url_for("bandeja"))
 
-    # 👷 PERSONAL → INICIO NORMAL
     return render_template("inicio.html")
 
 
@@ -209,6 +241,9 @@ def solicitar():
     return render_template("solicitar.html")
 
 
+# ===============================
+# GUARDAR SOLICITUD
+# ===============================
 @app.route("/guardar_solicitud", methods=["POST"])
 def guardar_solicitud():
     if "nombre" not in session:
@@ -224,16 +259,16 @@ def guardar_solicitud():
         items = json.loads(items_json)
         ws = get_ws("Solicitudes")
 
-        # ✅ FECHA Y HORA REAL DE PERÚ
+        # ✅ FECHA PERÚ
         fecha = datetime.now(ZoneInfo("America/Lima"))
         fecha_str = fecha.strftime("%d/%m/%Y %H:%M")
 
         solicitante = session.get("nombre")
 
-        # ✅ generar ID_SOLICITUD único para toda la solicitud
+        # ✅ ID_SOLICITUD único
         id_solicitud = datetime.now(ZoneInfo("America/Lima")).strftime("%Y%m%d%H%M%S")
 
-        # ✅ armamos 1 mensaje con lista
+        # ✅ WhatsApp: resumen
         lista_items = []
         for idx, item in enumerate(items, start=1):
             descripcion = item.get("descripcion", "")
@@ -243,7 +278,6 @@ def guardar_solicitud():
         tipo_general = items[0].get("tipo", "")
         descripcion_lista = "  |  ".join(lista_items)
 
-        # ✅ suma real de cantidades
         cantidad_total = 0
         for it in items:
             try:
@@ -251,30 +285,30 @@ def guardar_solicitud():
             except:
                 cantidad_total += 0
 
-        # ✅ GUARDAR EN GOOGLE SHEETS (1 fila por cada item)
+        # ✅ Guardar 1 fila por item
         for item in items:
             tipo = item.get("tipo", "").strip()
             descripcion = item.get("descripcion", "").strip()
             cantidad = str(item.get("cantidad", "")).strip()
 
-            # ✅ BUSCAR EN CATALOGO: CODIGO SAP + CODIGO BARRAS + UM
+            # Buscar Catalogo
             codigo_sap, codigo_barras, um = buscar_en_catalogo(tipo, descripcion)
 
             ws.append_row([
-                id_solicitud,     # A ID_SOLICITUD
-                fecha_str,        # B FECHA
-                solicitante,      # C SOLICITANTE
-                tipo,             # D TIPO
-                codigo_sap,       # E CODIGO_SAP
-                codigo_barras,    # F CODIGO_BARRAS
-                descripcion,      # G DESCRIPCION
-                um,               # H UM
-                cantidad,         # I CANTIDAD
-                "PENDIENTE",      # J ESTADO
-                ""                # K ALMACENERO
+                id_solicitud,     # A
+                fecha_str,        # B
+                solicitante,      # C
+                tipo,             # D
+                codigo_sap,       # E
+                codigo_barras,    # F
+                descripcion,      # G
+                um,               # H
+                cantidad,         # I
+                "PENDIENTE",      # J
+                ""                # K
             ])
 
-        # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
+        # WhatsApp (opcional)
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
@@ -297,20 +331,8 @@ def bandeja():
     ws = get_ws("Solicitudes")
     filas = ws.get_all_values()
 
-    # A ID_SOLICITUD
-    # B FECHA
-    # C SOLICITANTE
-    # D TIPO
-    # E CODIGO_SAP
-    # F CODIGO_BARRAS
-    # G DESCRIPCION
-    # H UM
-    # I CANTIDAD
-    # J ESTADO
-    # K ALMACENERO
     grupos = defaultdict(list)
 
-    # Recorremos filas (desde la 2 porque la 1 es cabecera)
     for i, fila in enumerate(filas[1:], start=2):
         id_solicitud = fila[0] if len(fila) > 0 else ""
         fecha = fila[1] if len(fila) > 1 else ""
@@ -328,7 +350,7 @@ def bandeja():
             continue
 
         grupos[id_solicitud].append({
-            "fila": i,  # fila real en Google Sheets (para actualizar_estado)
+            "fila": i,
             "id_solicitud": id_solicitud,
             "fecha": fecha,
             "solicitante": solicitante,
@@ -342,7 +364,6 @@ def bandeja():
             "almacenero": almacenero,
         })
 
-    # Armamos lista final para la vista (agrupada)
     solicitudes_agrupadas = []
     for id_s, detalle in grupos.items():
         cab = detalle[0]
@@ -353,10 +374,9 @@ def bandeja():
             "tipo": cab["tipo"],
             "estado": cab["estado"],
             "almacenero": cab["almacenero"],
-            "detalle": detalle,   # ✅ OJO: 'detalle' (NO 'items')
+            "detalle": detalle,   # ✅ no 'items'
         })
 
-    # Ordenar por id desc (más reciente arriba)
     solicitudes_agrupadas = sorted(
         solicitudes_agrupadas,
         key=lambda x: x["id_solicitud"],
@@ -365,8 +385,9 @@ def bandeja():
 
     return render_template("bandeja.html", solicitudes=solicitudes_agrupadas)
 
+
 # ===============================
-# ACTUALIZAR ESTADO
+# ACTUALIZAR ESTADO POR ITEM
 # ===============================
 @app.route("/actualizar_estado", methods=["POST"])
 def actualizar_estado():
@@ -375,25 +396,24 @@ def actualizar_estado():
 
     fila = int(request.form.get("fila"))
     nuevo_estado = request.form.get("estado", "").strip().upper()
-    almacenero = session.get("nombre")
+    almacenero = session.get("nombre", "")
 
     try:
         ws = get_ws("Solicitudes")
-
         # J=10 estado, K=11 almacenero
         ws.update_cell(fila, 10, nuevo_estado)
         ws.update_cell(fila, 11, almacenero)
 
-        flash(f"Solicitud {nuevo_estado}", "success")
+        flash(f"✅ Estado cambiado a {nuevo_estado}", "success")
 
     except Exception as e:
-        flash(f"Error al actualizar: {e}", "danger")
+        flash(f"❌ Error al actualizar: {e}", "danger")
 
     return redirect(url_for("bandeja"))
 
 
 # ===============================
-# GENERAR VALE (COPIAR ITEMS A VALE_SALIDA)
+# GENERAR VALE (CARGA + ATENDIDO + REDIRECT SHEETS)
 # ===============================
 @app.route("/generar_vale/<id_solicitud>", methods=["POST"])
 def generar_vale(id_solicitud):
@@ -408,12 +428,12 @@ def generar_vale(id_solicitud):
 
         items = []
         cabecera = None
-        filas_para_actualizar = []  # filas reales en sheet Solicitudes
+        filas_para_actualizar = []
 
         # ===============================
-        # 1) Buscar todos los items del ID_SOLICITUD
+        # 1) Items del mismo ID
         # ===============================
-        for idx, fila in enumerate(filas[1:], start=2):  # idx = fila real en Sheets
+        for idx, fila in enumerate(filas[1:], start=2):
             if len(fila) < 11:
                 continue
 
@@ -443,58 +463,75 @@ def generar_vale(id_solicitud):
         almacenero = session.get("nombre", "")
 
         # ===============================
-        # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
+        # 2) AREA y CARGO desde Usuarios
         # ===============================
-        # Borra solo tabla de items (filas 8 a 22 aprox)
-        wsVale.batch_clear(["A8:F22"])
+        area, cargo = get_area_cargo_por_nombre(cabecera["solicitante"])
 
         # ===============================
-        # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
+        # 3) LIMPIAR SOLO TABLA (NO CABECERA)
+        # ===============================
+        wsVale.batch_clear(["A8:K22"])
+
+        # ===============================
+        # 4) CABECERA EXACTA SEGÚN TU FORMATO REAL
         # ===============================
         # FECHA
         wsVale.update("M2", [[cabecera["fecha"]]])
 
-        # TRABAJADOR (solicitante)
+        # TRABAJADOR
         wsVale.update("C5", [[cabecera["solicitante"]]])
 
-        # ALMACENERO (logueado)
-        wsVale.update("E6", [[almacenero]])
+        # CARGO
+        wsVale.update("C6", [[cargo]])
 
-        # (AREA y CARGO por ahora no se llenan si no los tienes en Usuarios)
-        # wsVale.update("E5", [[""]])
-        # wsVale.update("C6", [[""]])
+        # AREA
+        wsVale.update("E6", [[area]])
+
+        # ALMACENERO (en tu formato está en H5)
+        wsVale.update("H5", [[almacenero]])
 
         # ===============================
-        # 4) CARGAR ITEMS (fila 8 en adelante)
+        # 5) ITEMS DESDE FILA 8
         # ===============================
         fila_inicio = 8
-        data_rows = []
         n = 1
-
         for it in items:
-            data_rows.append([
-                n,                   # A N°
-                it["codigo_sap"],     # B CODIGO
-                it["codigo_barras"],  # C CODIGO BARRAS
-                it["descripcion"],    # D DESCRIPCION
-                it["cantidad"],       # E CANT.
-                it["um"]              # F UM
-            ])
+            f = fila_inicio + (n - 1)
+
+            # A N°
+            wsVale.update(f"A{f}", [[n]])
+
+            # B CODIGO
+            wsVale.update(f"B{f}", [[it["codigo_sap"]]])
+
+            # C CODIGO BARRAS (se verá como barras si la fuente está aplicada)
+            wsVale.update(f"C{f}", [[it["codigo_barras"]]])
+
+            # D DESCRIPCION (celda combinada)
+            wsVale.update(f"D{f}", [[it["descripcion"]]])
+
+            # G CANTIDAD
+            wsVale.update(f"G{f}", [[it["cantidad"]]])
+
+            # H UM
+            wsVale.update(f"H{f}", [[it["um"]]])
+
             n += 1
 
-        rango = f"A{fila_inicio}:F{fila_inicio + len(data_rows) - 1}"
-        wsVale.update(rango, data_rows)
-
         # ===============================
-        # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
+        # 6) MARCAR ATENDIDO EN SOLICITUDES
         # ===============================
-        # J=10 ESTADO, K=11 ALMACENERO
         for fila_real in filas_para_actualizar:
-            wsSol.update_cell(fila_real, 10, "ATENDIDO")
-            wsSol.update_cell(fila_real, 11, almacenero)
+            wsSol.update_cell(fila_real, 10, "ATENDIDO")   # J
+            wsSol.update_cell(fila_real, 11, almacenero)   # K
 
         flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
-        return redirect(url_for("bandeja"))
+
+        # ===============================
+        # 7) REDIRECT DIRECTO A GOOGLE SHEETS VALE
+        # ===============================
+        url_vale = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid={GID_VALE_SALIDA}"
+        return redirect(url_vale)
 
     except Exception as e:
         flash(f"❌ Error al generar vale: {e}", "danger")
