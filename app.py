@@ -447,8 +447,8 @@ def generar_vale(id_solicitud):
         # ===============================
         # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
         # ===============================
-        # Borra solo tabla de items (filas 8 a 22 aprox)
-        wsVale.batch_clear(["A8:F22"])
+        # Borra solo tabla de items (filas 7 a 16 aprox)
+        wsVale.batch_clear(["A7:F22"])
 
         # ===============================
         # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
@@ -490,9 +490,9 @@ def generar_vale(id_solicitud):
         wsVale.update("F6", [[area_trab]])     # AREA
 
         # ===============================
-        # 4) CARGAR ITEMS (fila 8 en adelante)
+        # 4) CARGAR ITEMS (fila 7 en adelante)
         # ===============================
-        fila = 8
+        fila = 7
         n = 1
 
         for it in items:
