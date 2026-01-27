@@ -447,7 +447,7 @@ def generar_vale(id_solicitud):
         # ===============================
         # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
         # ===============================
-        # Borra solo tabla de items (filas 7 a 16 aprox)
+        # Borra solo tabla de items (filas 6 a 15 aprox)
         wsVale.batch_clear(["A7:F22"])
 
         # ===============================
@@ -457,10 +457,10 @@ def generar_vale(id_solicitud):
         wsVale.update("J3", [[cabecera["fecha"]]])
 
         # TRABAJADOR (solicitante)
-        wsVale.update("C5", [[cabecera["solicitante"]]])
+        wsVale.update("C4", [[cabecera["solicitante"]]])
 
         # ALMACENERO (logueado)
-        wsVale.update("F5", [[almacenero]])
+        wsVale.update("F4", [[almacenero]])
 
         # ===============================
         # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
@@ -484,15 +484,10 @@ def generar_vale(id_solicitud):
                 area_trab = str(fila.get("AREA", "")).strip()
                 break
 
-        # Escribir en el VALE
-        wsVale.update("B5", [[codigo_trab]])   # CODIGO
-        wsVale.update("B6", [[cargo_trab]])    # CARGO
-        wsVale.update("F6", [[area_trab]])     # AREA
-
         # ===============================
-        # 4) CARGAR ITEMS (fila 7 en adelante)
+        # 4) CARGAR ITEMS (fila 6 en adelante)
         # ===============================
-        fila = 7
+        fila = 6
         n = 1
 
         for it in items:
