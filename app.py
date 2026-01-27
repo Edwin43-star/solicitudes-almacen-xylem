@@ -128,11 +128,13 @@ def get_usuario(codigo):
     for fila in filas:
         if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
             return {
+                "codigo": str(fila.get("CODIGO", "")).strip(),
                 "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
+                "cargo": str(fila.get("CARGO", "")).strip(),
+                "area": str(fila.get("AREA", "")).strip(),
                 "rol": str(fila.get("ROL", "")).strip(),
             }
     return None
-
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -463,6 +465,16 @@ def generar_vale(id_solicitud):
         # (AREA y CARGO por ahora no se llenan si no los tienes en Usuarios)
         # wsVale.update("B6", [[""]])
         # wsVale.update("F6", [[""]])
+
+        # ===============================
+        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
+        # ===============================
+        usuario = get_usuario(cabecera["codigo"])  # <-- SOLO "codigo"
+
+        if usuario:
+            wsVale.update("B5", [[usuario["codigo"]]])   # CODIGO
+            wsVale.update("B6", [[usuario["cargo"]]])    # CARGO
+            wsVale.update("F6", [[usuario["area"]]])     # AREA
 
         # ===============================
         # 4) CARGAR ITEMS (fila 8 en adelante)
