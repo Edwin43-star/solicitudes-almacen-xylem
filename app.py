@@ -50,35 +50,38 @@ def url_vale_sheets():
 # ===============================
 # CATALOGO
 # ===============================
-@app.route("/api/catalogo")
-def api_catalogo():
+def buscar_en_catalogo(tipo, descripcion):
+    """
+    Devuelve: (codigo_sap, codigo_barras, um)
+    Buscando en la hoja Catalogo por TIPO + DESCRIPCION.
+    """
     try:
-        tipo = request.args.get("tipo", "").strip().upper()
-        if not tipo:
-            return jsonify({"items": []})
+        tipo_buscar = str(tipo or "").strip().upper()
+        desc_buscar = str(descripcion or "").strip().upper()
 
         ws = get_ws("Catalogo")
         filas = ws.get_all_records()
 
-        items = []
         for fila in filas:
             activo = str(fila.get("ACTIVO", "")).strip().upper()
             tipo_fila = str(fila.get("TIPO", "")).strip().upper()
+            desc_fila = str(fila.get("DESCRIPCION", "")).strip().upper()
 
-            if activo == "SI" and tipo_fila == tipo:
-                items.append({
-                    "codigo_sap": fila.get("CODIGO", ""),
-                    "tipo": fila.get("TIPO", ""),
-                    "descripcion": fila.get("DESCRIPCION", ""),
-                    "um": fila.get("U.M", ""),
-                    "stock": fila.get("STOCK", "")
-                })
+            if activo != "SI":
+                continue
 
-        return jsonify({"items": items})
+            if tipo_fila == tipo_buscar and desc_fila == desc_buscar:
+                codigo_sap = str(fila.get("CODIGO", "")).strip()
+                codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
+                um = str(fila.get("U.M", "")).strip()
+                return codigo_sap, codigo_barras, um
+
+        # Si no encuentra, devuelve vacíos para no romper guardar solicitud
+        return "", "", ""
 
     except Exception as e:
-        print("ERROR /api/catalogo:", e)
-        return jsonify({"items": [], "error": str(e)}), 500
+        print("ERROR buscar_en_catalogo:", e)
+        return "", "", ""
 
 
 # ===============================
