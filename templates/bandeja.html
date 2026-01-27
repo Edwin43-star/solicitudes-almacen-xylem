@@ -59,7 +59,7 @@
             </small>
           </div>
 
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-2 align-items-center">
             <!-- BOTÓN GENERAR VALE -->
             <form action="/generar_vale/{{ sol.id_solicitud }}" method="POST">
               <button class="btn btn-warning btn-sm">
@@ -67,7 +67,7 @@
               </button>
             </form>
 
-            <!-- estado -->
+            <!-- ESTADO -->
             {% set est = (sol.estado or "")|upper %}
             {% if est == "PENDIENTE" %}
               <span class="badge bg-warning text-dark badge-estado">PENDIENTE</span>
@@ -94,13 +94,11 @@
                 <th style="width:80px;">U.M</th>
                 <th style="width:80px;">CANT</th>
                 <th style="width:120px;">ESTADO</th>
-                <th style="width:220px;">ACCIÓN</th>
               </tr>
             </thead>
 
             <tbody>
-
-              {# OJO: aquí usamos sol.detalle (NO sol.items) #}
+              <!-- ✅ OJO: sol.detalle -->
               {% for it in sol.detalle %}
               <tr>
                 <td class="codigo">{{ it.codigo_sap }}</td>
@@ -121,28 +119,10 @@
                     <span class="badge bg-info">{{ it.estado }}</span>
                   {% endif %}
                 </td>
-
-                <!-- Actualizar estado por item -->
-                <td>
-                  <form action="/actualizar_estado" method="POST" class="d-flex gap-2">
-                    <input type="hidden" name="fila" value="{{ it.fila }}">
-
-                    <select name="estado" class="form-select form-select-sm" required>
-                      <option value="" disabled selected>Seleccionar...</option>
-                      <option value="PENDIENTE">PENDIENTE</option>
-                      <option value="ATENDIDO">ATENDIDO</option>
-                      <option value="ANULADO">ANULADO</option>
-                    </select>
-
-                    <button class="btn btn-primary btn-sm">
-                      ✅ Guardar
-                    </button>
-                  </form>
-                </td>
               </tr>
               {% endfor %}
-
             </tbody>
+
           </table>
         </div>
 
