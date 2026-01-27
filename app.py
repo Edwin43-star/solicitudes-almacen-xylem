@@ -13,7 +13,7 @@ from collections import defaultdict
 # ===============================
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
-WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Ej: 51939947031
+WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -21,8 +21,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 
-# ✅ GID VALE_SALIDA
-VALE_GID = int(os.environ.get("VALE_GID", "1184202075"))
 
 # ===============================
 # GOOGLE SHEETS
@@ -42,46 +40,39 @@ def get_ws(nombre):
     return sh.worksheet(nombre)
 
 
-def url_vale_sheets():
-    # Abre el archivo ya filtrado en hoja VALE_SALIDA
-    return f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid={VALE_GID}"
-
-
 # ===============================
-# CATALOGO
+# CATALOGO (BUSQUEDA)
 # ===============================
 def buscar_en_catalogo(tipo, descripcion):
     """
-    Devuelve: (codigo_sap, codigo_barras, um)
-    Buscando en la hoja Catalogo por TIPO + DESCRIPCION.
+    Busca en hoja Catalogo según tipo + descripcion
+    Devuelve: codigo_sap, codigo_barras, um
     """
-    try:
-        tipo_buscar = str(tipo or "").strip().upper()
-        desc_buscar = str(descripcion or "").strip().upper()
+    wsCat = get_ws("Catalogo")
+    filas = wsCat.get_all_records()
 
-        ws = get_ws("Catalogo")
-        filas = ws.get_all_records()
+    tipo = str(tipo).strip().upper()
+    descripcion = str(descripcion).strip().upper()
 
-        for fila in filas:
-            activo = str(fila.get("ACTIVO", "")).strip().upper()
-            tipo_fila = str(fila.get("TIPO", "")).strip().upper()
-            desc_fila = str(fila.get("DESCRIPCION", "")).strip().upper()
+    for fila in filas:
+        tipo_fila = str(fila.get("TIPO", "")).strip().upper()
+        desc_fila = str(fila.get("DESCRIPCION", "")).strip().upper()
 
-            if activo != "SI":
-                continue
+        if tipo_fila == tipo and desc_fila == descripcion:
+            codigo_sap = str(fila.get("CODIGO", "")).strip()
 
-            if tipo_fila == tipo_buscar and desc_fila == desc_buscar:
-                codigo_sap = str(fila.get("CODIGO", "")).strip()
-                codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
-                um = str(fila.get("U.M", "")).strip()
-                return codigo_sap, codigo_barras, um
+            um = str(fila.get("U.M", "")).strip() or str(fila.get("UM", "")).strip()
 
-        # Si no encuentra, devuelve vacíos para no romper guardar solicitud
-        return "", "", ""
+            # CODIGO_BARRAS puede estar guardado o lo generamos automático
+            codigo_barras = str(fila.get("CODIGO_BARRAS", "")).strip()
 
-    except Exception as e:
-        print("ERROR buscar_en_catalogo:", e)
-        return "", "", ""
+            if not codigo_barras and codigo_sap:
+                # Formato Code39 para lectura con Free 3 of 9
+                codigo_barras = f"*{codigo_sap}*"
+
+            return codigo_sap, codigo_barras, um
+
+    return "", "", ""
 
 
 # ===============================
@@ -122,7 +113,7 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
     try:
         r = requests.post(url, json=payload, headers=headers)
-        print("✅ WhatsApp enviado:", r.status_code, r.text)
+        print("✅ WhatsApp plantilla enviado:", r.status_code, r.text)
     except Exception as e:
         print("❌ Error WhatsApp:", e)
 
@@ -137,35 +128,14 @@ def get_usuario(codigo):
     for fila in filas:
         if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
             return {
-                "nombre": str(fila.get("NOMBRE COMPLETO", fila.get("NOMBRE", ""))).strip(),
+                "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
                 "rol": str(fila.get("ROL", "")).strip(),
             }
     return None
 
 
-def buscar_datos_usuario_por_nombre(nombre):
-    if not nombre:
-        return "", "", ""
-
-    ws = get_ws("Usuarios")
-    filas = ws.get_all_records()
-    nombre_u = str(nombre).strip().upper()
-
-    for fila in filas:
-        n1 = str(fila.get("NOMBRE", "")).strip().upper()
-        n2 = str(fila.get("NOMBRE COMPLETO", "")).strip().upper()
-
-        if nombre_u == n1 or nombre_u == n2:
-            codigo = str(fila.get("CODIGO", "")).strip()
-            area = str(fila.get("AREA", "")).strip()
-            cargo = str(fila.get("CARGO", "")).strip()
-            return codigo, area, cargo
-
-    return "", "", ""
-
-
 # ===============================
-# LOGIN
+# RUTAS PRINCIPALES
 # ===============================
 @app.route("/", methods=["GET"])
 def root():
@@ -175,12 +145,17 @@ def root():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        # --- PERSONAL ---
         codigo_personal = request.form.get("codigo_personal", "").strip()
         nombre_personal = request.form.get("nombre_personal", "").strip()
 
+        # --- ALMACENERO ---
         almacenero = request.form.get("almacenero", "").strip()
         password = request.form.get("password", "").strip()
 
+        # ========= VALIDACIÓN =========
+
+        # Almacenero
         if almacenero:
             if almacenero == "EDWIN ROMERO" and password == "6982":
                 session["rol"] = "ALMACEN"
@@ -194,6 +169,7 @@ def login():
 
             return render_template("login.html", error="Contraseña incorrecta")
 
+        # Personal (con validación desde sheet Usuarios por CODIGO)
         if codigo_personal:
             usuario = get_usuario(codigo_personal)
             if usuario:
@@ -202,6 +178,7 @@ def login():
                 return redirect(url_for("inicio"))
             return render_template("login.html", error="Código no registrado")
 
+        # Login por nombre sin código
         if nombre_personal:
             session["rol"] = "PERSONAL"
             session["nombre"] = nombre_personal
@@ -217,9 +194,11 @@ def inicio():
     if "nombre" not in session:
         return redirect(url_for("login"))
 
+    # 🔑 ALMACENERO → BANDEJA
     if session.get("rol") == "ALMACEN":
         return redirect(url_for("bandeja"))
 
+    # 👷 PERSONAL → INICIO NORMAL
     return render_template("inicio.html")
 
 
@@ -236,6 +215,7 @@ def guardar_solicitud():
         return redirect(url_for("login"))
 
     items_json = request.form.get("items_json", "").strip()
+
     if not items_json:
         flash("No hay ítems en la solicitud", "danger")
         return redirect(url_for("solicitar"))
@@ -244,12 +224,16 @@ def guardar_solicitud():
         items = json.loads(items_json)
         ws = get_ws("Solicitudes")
 
+        # ✅ FECHA Y HORA REAL DE PERÚ
         fecha = datetime.now(ZoneInfo("America/Lima"))
         fecha_str = fecha.strftime("%d/%m/%Y %H:%M")
 
         solicitante = session.get("nombre")
+
+        # ✅ generar ID_SOLICITUD único para toda la solicitud
         id_solicitud = datetime.now(ZoneInfo("America/Lima")).strftime("%Y%m%d%H%M%S")
 
+        # ✅ armamos 1 mensaje con lista
         lista_items = []
         for idx, item in enumerate(items, start=1):
             descripcion = item.get("descripcion", "")
@@ -259,6 +243,7 @@ def guardar_solicitud():
         tipo_general = items[0].get("tipo", "")
         descripcion_lista = "  |  ".join(lista_items)
 
+        # ✅ suma real de cantidades
         cantidad_total = 0
         for it in items:
             try:
@@ -266,27 +251,30 @@ def guardar_solicitud():
             except:
                 cantidad_total += 0
 
+        # ✅ GUARDAR EN GOOGLE SHEETS (1 fila por cada item)
         for item in items:
             tipo = item.get("tipo", "").strip()
             descripcion = item.get("descripcion", "").strip()
             cantidad = str(item.get("cantidad", "")).strip()
 
+            # ✅ BUSCAR EN CATALOGO: CODIGO SAP + CODIGO BARRAS + UM
             codigo_sap, codigo_barras, um = buscar_en_catalogo(tipo, descripcion)
 
             ws.append_row([
-                id_solicitud,
-                fecha_str,
-                solicitante,
-                tipo,
-                codigo_sap,
-                codigo_barras,
-                descripcion,
-                um,
-                cantidad,
-                "PENDIENTE",
-                ""
+                id_solicitud,     # A ID_SOLICITUD
+                fecha_str,        # B FECHA
+                solicitante,      # C SOLICITANTE
+                tipo,             # D TIPO
+                codigo_sap,       # E CODIGO_SAP
+                codigo_barras,    # F CODIGO_BARRAS
+                descripcion,      # G DESCRIPCION
+                um,               # H UM
+                cantidad,         # I CANTIDAD
+                "PENDIENTE",      # J ESTADO
+                ""                # K ALMACENERO
             ])
 
+        # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
@@ -299,7 +287,7 @@ def guardar_solicitud():
 
 
 # ===============================
-# BANDEJA
+# BANDEJA AGRUPADA (CORREGIDA)
 # ===============================
 @app.route("/bandeja")
 def bandeja():
@@ -309,13 +297,22 @@ def bandeja():
     ws = get_ws("Solicitudes")
     filas = ws.get_all_values()
 
+    # A ID_SOLICITUD
+    # B FECHA
+    # C SOLICITANTE
+    # D TIPO
+    # E CODIGO_SAP
+    # F CODIGO_BARRAS
+    # G DESCRIPCION
+    # H UM
+    # I CANTIDAD
+    # J ESTADO
+    # K ALMACENERO
     grupos = defaultdict(list)
 
+    # Recorremos filas (desde la 2 porque la 1 es cabecera)
     for i, fila in enumerate(filas[1:], start=2):
         id_solicitud = fila[0] if len(fila) > 0 else ""
-        if id_solicitud.strip() == "":
-            continue
-
         fecha = fila[1] if len(fila) > 1 else ""
         solicitante = fila[2] if len(fila) > 2 else ""
         tipo = fila[3] if len(fila) > 3 else ""
@@ -327,8 +324,11 @@ def bandeja():
         estado = fila[9] if len(fila) > 9 else ""
         almacenero = fila[10] if len(fila) > 10 else ""
 
+        if id_solicitud.strip() == "":
+            continue
+
         grupos[id_solicitud].append({
-            "fila": i,
+            "fila": i,  # fila real en Google Sheets (para actualizar_estado)
             "id_solicitud": id_solicitud,
             "fecha": fecha,
             "solicitante": solicitante,
@@ -342,44 +342,58 @@ def bandeja():
             "almacenero": almacenero,
         })
 
+    # Armamos lista final para la vista (agrupada)
     solicitudes_agrupadas = []
     for id_s, detalle in grupos.items():
         cab = detalle[0]
-
-        estados = [str(it.get("estado", "")).strip().upper() for it in detalle]
-        estado_cab = "ATENDIDO" if estados and all(e == "ATENDIDO" for e in estados) else "PENDIENTE"
-
-        alm_cab = ""
-        for it in detalle:
-            if str(it.get("almacenero", "")).strip():
-                alm_cab = str(it.get("almacenero", "")).strip()
-                break
-
         solicitudes_agrupadas.append({
             "id_solicitud": id_s,
-            "fecha": cab.get("fecha", ""),
-            "solicitante": cab.get("solicitante", ""),
-            "tipo": cab.get("tipo", ""),
-            "estado": estado_cab,
-            "almacenero": alm_cab,
-            "detalle": detalle
+            "fecha": cab["fecha"],
+            "solicitante": cab["solicitante"],
+            "tipo": cab["tipo"],
+            "estado": cab["estado"],
+            "almacenero": cab["almacenero"],
+            "detalle": detalle,   # ✅ OJO: 'detalle' (NO 'items')
         })
 
+    # Ordenar por id desc (más reciente arriba)
     solicitudes_agrupadas = sorted(
         solicitudes_agrupadas,
         key=lambda x: x["id_solicitud"],
         reverse=True
     )
 
-    return render_template(
-        "bandeja.html",
-        solicitudes=solicitudes_agrupadas,
-        vale_url=url_vale_sheets()
-    )
+    return render_template("bandeja.html", solicitudes=solicitudes_agrupadas)
+
+# ===============================
+# ACTUALIZAR ESTADO
+# ===============================
+@app.route("/actualizar_estado", methods=["POST"])
+def actualizar_estado():
+    if "rol" not in session or session.get("rol") != "ALMACEN":
+        return redirect(url_for("login"))
+
+    fila = int(request.form.get("fila"))
+    nuevo_estado = request.form.get("estado", "").strip().upper()
+    almacenero = session.get("nombre")
+
+    try:
+        ws = get_ws("Solicitudes")
+
+        # J=10 estado, K=11 almacenero
+        ws.update_cell(fila, 10, nuevo_estado)
+        ws.update_cell(fila, 11, almacenero)
+
+        flash(f"Solicitud {nuevo_estado}", "success")
+
+    except Exception as e:
+        flash(f"Error al actualizar: {e}", "danger")
+
+    return redirect(url_for("bandeja"))
 
 
 # ===============================
-# GENERAR VALE
+# GENERAR VALE (COPIAR ITEMS A VALE_SALIDA)
 # ===============================
 @app.route("/generar_vale/<id_solicitud>", methods=["POST"])
 def generar_vale(id_solicitud):
@@ -394,13 +408,16 @@ def generar_vale(id_solicitud):
 
         items = []
         cabecera = None
-        filas_a_actualizar = []
+        filas_para_actualizar = []  # filas reales en sheet Solicitudes
 
-        for idx, fila in enumerate(filas[1:], start=2):
-            if len(fila) < 10:
+        # ===============================
+        # 1) Buscar todos los items del ID_SOLICITUD
+        # ===============================
+        for idx, fila in enumerate(filas[1:], start=2):  # idx = fila real en Sheets
+            if len(fila) < 11:
                 continue
 
-            if str(fila[0]).strip() == str(id_solicitud).strip():
+            if fila[0].strip() == id_solicitud.strip():
                 if cabecera is None:
                     cabecera = {
                         "id": fila[0],
@@ -414,77 +431,107 @@ def generar_vale(id_solicitud):
                     "codigo_barras": fila[5],
                     "descripcion": fila[6],
                     "um": fila[7],
-                    "cantidad": fila[8]
+                    "cantidad": fila[8],
                 })
 
-                filas_a_actualizar.append(idx)
+                filas_para_actualizar.append(idx)
 
-        if not items or cabecera is None:
+        if not items:
             flash("❌ No se encontraron items para esta solicitud", "danger")
             return redirect(url_for("bandeja"))
 
-        almacenero = session.get("nombre", "").strip()
+        almacenero = session.get("nombre", "")
 
-        # ✅ LIMPIAR SOLO DETALLE
-        wsVale.batch_clear(["A8:K22"])
+        # ===============================
+        # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
+        # ===============================
+        # Borra solo tabla de items (filas 8 a 22 aprox)
+        wsVale.batch_clear(["A8:F22"])
 
-        # ✅ CABECERA
-        fecha_vale = datetime.now(ZoneInfo("America/Lima")).strftime("%d/%m/%Y %H:%M")
-        solicitante = cabecera.get("solicitante", "")
+        # ===============================
+        # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
+        # ===============================
+        # FECHA
+        wsVale.update("M2", [[cabecera["fecha"]]])
 
-        codigo_trab, area, cargo = buscar_datos_usuario_por_nombre(solicitante)
+        # TRABAJADOR (solicitante)
+        wsVale.update("C5", [[cabecera["solicitante"]]])
 
-        # SOLO celda superior izquierda (por celdas combinadas)
-        wsVale.update("J3", [[fecha_vale]])
-        wsVale.update("B5", [[codigo_trab]])
-        wsVale.update("D5", [[solicitante]])
-        wsVale.update("B6", [[cargo]])
-        wsVale.update("F6", [[area]])
-        wsVale.update("G5", [[almacenero]])  # almacenero
+        # ALMACENERO (logueado)
+        wsVale.update("E6", [[almacenero]])
 
-        # ✅ ITEMS (CORRECTO, SIN NUEVO/CAMBIO)
+        # (AREA y CARGO por ahora no se llenan si no los tienes en Usuarios)
+        # wsVale.update("E5", [[""]])
+        # wsVale.update("C6", [[""]])
+
+        # ===============================
+        # 4) CARGAR ITEMS (fila 8 en adelante)
+        # ===============================
         fila_inicio = 8
         data_rows = []
+        n = 1
 
-        for n, it in enumerate(items, start=1):
-            cb = str(it.get("codigo_barras", "")).strip()
-
-            # Forzar a formato barras: *CODIGO*
-            if cb and not (cb.startswith("*") and cb.endswith("*")):
-                cb = f"*{cb}*"
-
+        for it in items:
             data_rows.append([
-                n,                                       # A N°
-                str(it.get("codigo_sap", "")).strip(),   # B CODIGO
-                cb,                                      # C CODIGO BARRAS
-                str(it.get("descripcion", "")).strip(),  # D DESCRIPCION
-                "",                                      # E (vacío)
-                "",                                      # F (vacío)
-                str(it.get("cantidad", "")).strip(),     # G CANT
-                str(it.get("um", "")).strip(),           # H UM
+                n,                   # A N°
+                it["codigo_sap"],     # B CODIGO
+                it["codigo_barras"],  # C CODIGO BARRAS
+                it["descripcion"],    # D DESCRIPCION
+                it["cantidad"],       # E CANT.
+                it["um"]              # F UM
             ])
+            n += 1
 
-        # A-H
-        rango = f"A{fila_inicio}:H{fila_inicio + len(data_rows) - 1}"
-        wsVale.update(rango, data_rows, value_input_option="USER_ENTERED")
+        rango = f"A{fila_inicio}:F{fila_inicio + len(data_rows) - 1}"
+        wsVale.update(rango, data_rows)
 
-        # ✅ MARCAR ATENDIDO EN SOLICITUDES (todas filas ID)
-        batch_updates = []
-        for r in filas_a_actualizar:
-            batch_updates.append({"range": f"J{r}", "values": [["ATENDIDO"]]})
-            batch_updates.append({"range": f"K{r}", "values": [[almacenero]]})
+        # ===============================
+        # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
+        # ===============================
+        # J=10 ESTADO, K=11 ALMACENERO
+        for fila_real in filas_para_actualizar:
+            wsSol.update_cell(fila_real, 10, "ATENDIDO")
+            wsSol.update_cell(fila_real, 11, almacenero)
 
-        wsSol.batch_update(batch_updates, value_input_option="USER_ENTERED")
-
-        # ✅ MENSAJE QUE PIDES
-        flash("✅ ATENDIDO y VALE GENERADO", "success")
-
-        # ✅ VOLVER A BANDEJA
+        flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
         return redirect(url_for("bandeja"))
 
     except Exception as e:
         flash(f"❌ Error al generar vale: {e}", "danger")
         return redirect(url_for("bandeja"))
+
+
+# ===============================
+# API CATALOGO
+# ===============================
+@app.route("/api/catalogo")
+def api_catalogo():
+    tipo = request.args.get("tipo", "").strip().upper()
+
+    try:
+        ws = get_ws("Catalogo")
+        filas = ws.get_all_records()
+
+        items = []
+        for fila in filas:
+            activo = str(fila.get("ACTIVO", "")).strip().upper()
+            tipo_fila = str(fila.get("TIPO", "")).strip().upper()
+
+            if activo == "SI" and tipo_fila == tipo:
+                items.append({
+                    "codigo_sap": fila.get("CODIGO", ""),
+                    "tipo": fila.get("TIPO", ""),
+                    "descripcion": fila.get("DESCRIPCION", ""),
+                    "um": fila.get("U.M", ""),
+                    "stock": fila.get("STOCK", ""),
+                    "codigo_barras": fila.get("CODIGO_BARRAS", "")
+                })
+
+        return jsonify({"items": items})
+
+    except Exception as e:
+        print("ERROR /api/catalogo:", e)
+        return jsonify({"items": [], "error": str(e)}), 500
 
 
 @app.route("/logout")
