@@ -452,17 +452,17 @@ def generar_vale(id_solicitud):
         # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
         # ===============================
         # FECHA
-        wsVale.update("M2", [[cabecera["fecha"]]])
+        wsVale.update("J3", [[cabecera["fecha"]]])
 
         # TRABAJADOR (solicitante)
-        wsVale.update("C5", [[cabecera["solicitante"]]])
+        wsVale.update("D5", [[cabecera["solicitante"]]])
 
         # ALMACENERO (logueado)
-        wsVale.update("E6", [[almacenero]])
+        wsVale.update("G5", [[almacenero]])
 
         # (AREA y CARGO por ahora no se llenan si no los tienes en Usuarios)
-        # wsVale.update("E5", [[""]])
-        # wsVale.update("C6", [[""]])
+        # wsVale.update("B6", [[""]])
+        # wsVale.update("F6", [[""]])
 
         # ===============================
         # 4) CARGAR ITEMS (fila 8 en adelante)
