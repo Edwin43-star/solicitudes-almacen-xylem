@@ -1,4 +1,4 @@
-rom flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import os
 import json
 import gspread
@@ -21,9 +21,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 GOOGLE_CREDENTIALS = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 
-# GID VALE_SALIDA
+# ✅ GID VALE_SALIDA
 VALE_GID = int(os.environ.get("VALE_GID", "1184202075"))
-
 
 # ===============================
 # GOOGLE SHEETS
@@ -44,36 +43,8 @@ def get_ws(nombre):
 
 
 def url_vale_sheets():
+    # Abre el archivo ya filtrado en hoja VALE_SALIDA
     return f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid={VALE_GID}"
-
-
-# ===============================
-# UTILS
-# ===============================
-def safe_update_cell(ws, cell, value):
-    """
-    Escribe valor en una celda. Si Google Sheets rechaza por merge,
-    intenta alternativas comunes (para tus combinaciones).
-    """
-    try:
-        ws.update(cell, value)
-        return True
-    except Exception:
-        return False
-
-
-def safe_update_merged(ws, candidates, value):
-    """
-    Para celdas combinadas: intenta escribir en varias celdas candidatas
-    hasta que una funcione.
-    """
-    for c in candidates:
-        try:
-            ws.update(c, value)
-            return c
-        except Exception:
-            continue
-    raise Exception(f"No se pudo escribir en rango combinado. Intentos: {candidates}")
 
 
 # ===============================
@@ -108,7 +79,7 @@ def buscar_en_catalogo(tipo, descripcion):
 # ===============================
 def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
-        print("WhatsApp no configurado")
+        print("⚠️ WhatsApp no configurado")
         return
 
     url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
@@ -141,9 +112,9 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
     try:
         r = requests.post(url, json=payload, headers=headers)
-        print("WhatsApp enviado:", r.status_code, r.text)
+        print("✅ WhatsApp enviado:", r.status_code, r.text)
     except Exception as e:
-        print("Error WhatsApp:", e)
+        print("❌ Error WhatsApp:", e)
 
 
 # ===============================
@@ -273,10 +244,10 @@ def guardar_solicitud():
         for idx, item in enumerate(items, start=1):
             descripcion = item.get("descripcion", "")
             cantidad = item.get("cantidad", "")
-            lista_items.append(f"{idx}) {descripcion} (x{cantidad})")
+            lista_items.append(f"✅{idx}) {descripcion} (x{cantidad})")
 
         tipo_general = items[0].get("tipo", "")
-        descripcion_lista = " | ".join(lista_items)
+        descripcion_lista = "  |  ".join(lista_items)
 
         cantidad_total = 0
         for it in items:
@@ -308,7 +279,7 @@ def guardar_solicitud():
 
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
-        flash("Solicitud registrada. El almacén la atenderá en breve.", "success")
+        flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
 
     except Exception as e:
@@ -366,8 +337,7 @@ def bandeja():
         cab = detalle[0]
 
         estados = [str(it.get("estado", "")).strip().upper() for it in detalle]
-        estado_cab = "ATENDIDO" if estados and all(e == "ATENDIDO" for e in estados) else (cab.get("estado") or "PENDIENTE")
-        estado_cab = str(estado_cab).strip().upper() if estado_cab else "PENDIENTE"
+        estado_cab = "ATENDIDO" if estados and all(e == "ATENDIDO" for e in estados) else "PENDIENTE"
 
         alm_cab = ""
         for it in detalle:
@@ -394,8 +364,7 @@ def bandeja():
     return render_template(
         "bandeja.html",
         solicitudes=solicitudes_agrupadas,
-        spreadsheet_id=SPREADSHEET_ID,
-        vale_gid=VALE_GID
+        vale_url=url_vale_sheets()
     )
 
 
@@ -441,72 +410,56 @@ def generar_vale(id_solicitud):
                 filas_a_actualizar.append(idx)
 
         if not items or cabecera is None:
-            msg = "No se encontraron items para esta solicitud"
-            flash(msg, "danger")
+            flash("❌ No se encontraron items para esta solicitud", "danger")
             return redirect(url_for("bandeja"))
 
         almacenero = session.get("nombre", "").strip()
 
-        # -----------------------------
-        # LIMPIAR SOLO DETALLE
-        # (NO BORRAR CABECERA NI TEXTOS)
-        # -----------------------------
-        wsVale.batch_clear(["A8:L22"])
+        # ✅ LIMPIAR SOLO DETALLE
+        wsVale.batch_clear(["A8:K22"])
 
-        # CABECERA
+        # ✅ CABECERA
         fecha_vale = datetime.now(ZoneInfo("America/Lima")).strftime("%d/%m/%Y %H:%M")
         solicitante = cabecera.get("solicitante", "")
 
         codigo_trab, area, cargo = buscar_datos_usuario_por_nombre(solicitante)
 
-        # FECHA (merge J3-K3-L3) -> escribir en J3
-        safe_update_merged(wsVale, ["J3", "K3", "L3"], fecha_vale)
+        # SOLO celda superior izquierda (por celdas combinadas)
+        wsVale.update("J3", [[fecha_vale]])
+        wsVale.update("B5", [[codigo_trab]])
+        wsVale.update("D5", [[solicitante]])
+        wsVale.update("B6", [[cargo]])
+        wsVale.update("D6", [[area]])
+        wsVale.update("G5", [[almacenero]])  # No borra el título "ALMACENERO"
 
-        # CODIGO (merge B5-C5) -> escribir en B5
-        safe_update_merged(wsVale, ["B5", "C5"], codigo_trab)
-
-        # TRABAJADOR (merge D5-E5-F5) -> escribir en D5
-        safe_update_merged(wsVale, ["D5", "E5", "F5"], solicitante)
-
-        # CARGO (merge B6-C6-D6) -> escribir en B6
-        safe_update_merged(wsVale, ["B6", "C6", "D6"], cargo)
-
-        # AREA (merge E6-F6) -> escribir en E6
-        safe_update_merged(wsVale, ["E6", "F6"], area)
-
-        # ALMACENERO (celda bajo etiqueta ALMACENERO, tu plantilla muestra ahí el nombre)
-        # En tu captura está centrado en la zona G5-H5 aprox, pero tú ya usabas G6
-        # Dejamos G6 que te funcionaba:
-        safe_update_merged(wsVale, ["G6", "H6", "I6"], almacenero)
-
-        # ITEMS (A-L)
+        # ✅ ITEMS + NUEVO + CAMBIO
         fila_inicio = 8
         data_rows = []
 
         for n, it in enumerate(items, start=1):
             cb = str(it.get("codigo_barras", "")).strip()
-            if cb and not (cb.startswith("*") and cb.endswith("*")):
-                cb = f"*{cb}*"
 
-            # Motivo: escribir NUEVO y CAMBIO (para marcar manual)
+            # Forzar a formato barras: *CODIGO*
+            if cb:
+                if not (cb.startswith("*") and cb.endswith("*")):
+                    cb = f"*{cb}*"
+
             data_rows.append([
-                n,                                      # A N°
-                str(it.get("codigo_sap", "")).strip(),  # B CODIGO
-                cb,                                     # C CODIGO BARRAS
-                str(it.get("descripcion", "")).strip(), # D DESCRIPCION
-                "", "",                                  # E-F (parte merge descripción, no se usa)
-                str(it.get("cantidad", "")).strip(),     # G CANT.
-                str(it.get("um", "")).strip(),           # H UM
-                "NUEVO",                                 # I
-                "CAMBIO",                                # J
-                "",                                      # K
-                ""                                       # L
+                n,                                       # A N°
+                str(it.get("codigo_sap", "")).strip(),   # B CODIGO
+                cb,                                      # C CODIGO BARRAS
+                str(it.get("descripcion", "")).strip(),  # D DESCRIPCION
+                str(it.get("cantidad", "")).strip(),     # E CANT
+                str(it.get("um", "")).strip(),           # F UM
+                "NUEVO",                                  # G
+                "CAMBIO"                                  # H
             ])
 
-        rango = f"A{fila_inicio}:L{fila_inicio + len(data_rows) - 1}"
+        # A-H
+        rango = f"A{fila_inicio}:H{fila_inicio + len(data_rows) - 1}"
         wsVale.update(rango, data_rows, value_input_option="USER_ENTERED")
 
-        # MARCAR ATENDIDO EN SOLICITUDES
+        # ✅ MARCAR ATENDIDO EN SOLICITUDES (todas filas ID)
         batch_updates = []
         for r in filas_a_actualizar:
             batch_updates.append({"range": f"J{r}", "values": [["ATENDIDO"]]})
@@ -514,13 +467,13 @@ def generar_vale(id_solicitud):
 
         wsSol.batch_update(batch_updates, value_input_option="USER_ENTERED")
 
-        flash("VALE generado y solicitud marcada como ATENDIDO", "success")
-        return redirect(url_for("bandeja"))
+        flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
+
+        # ✅ REDIRECCIONAR DIRECTO AL VALE (Google Sheets hoja VALE)
+        return redirect(url_vale_sheets())
 
     except Exception as e:
-        err = f"Error al generar vale: {e}"
-        print(err)
-        flash(err, "danger")
+        flash(f"❌ Error al generar vale: {e}", "danger")
         return redirect(url_for("bandeja"))
 
 
