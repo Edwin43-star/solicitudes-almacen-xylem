@@ -454,7 +454,7 @@ def generar_vale(id_solicitud):
         # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
         # ===============================
         # FECHA
-        wsVale.update("J3", [[cabecera["fecha"]]])
+        wsVale.update("J2", [[cabecera["fecha"]]])
 
         # TRABAJADOR (solicitante)
         wsVale.update("C4", [[cabecera["solicitante"]]])
