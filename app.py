@@ -462,19 +462,32 @@ def generar_vale(id_solicitud):
         # ALMACENERO (logueado)
         wsVale.update("G5", [[almacenero]])
 
-        # (AREA y CARGO por ahora no se llenan si no los tienes en Usuarios)
-        # wsVale.update("B6", [[""]])
-        # wsVale.update("F6", [[""]])
-
         # ===============================
         # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
         # ===============================
-        usuario = get_usuario(cabecera["codigo"])  # <-- SOLO "codigo"
+        codigo_trab = ""
+        cargo_trab = ""
+        area_trab = ""
 
-        if usuario:
-            wsVale.update("B5", [[usuario["codigo"]]])   # CODIGO
-            wsVale.update("B6", [[usuario["cargo"]]])    # CARGO
-            wsVale.update("F6", [[usuario["area"]]])     # AREA
+        wsUsuarios = get_ws("Usuarios")
+        filas_usr = wsUsuarios.get_all_records()
+
+        nombre_sol = str(cabecera["solicitante"]).strip().upper()
+
+        for fila in filas_usr:
+            nombre_usr = str(fila.get("NOMBRE", "")).strip().upper()
+            nombre_usr2 = str(fila.get("NOMBRE COMPLETO", "")).strip().upper()
+
+            if nombre_sol == nombre_usr or nombre_sol == nombre_usr2:
+                codigo_trab = str(fila.get("CODIGO", "")).strip()
+                cargo_trab = str(fila.get("CARGO", "")).strip()
+                area_trab = str(fila.get("AREA", "")).strip()
+                break
+
+        # Escribir en el VALE
+        wsVale.update("B5", [[codigo_trab]])   # CODIGO
+        wsVale.update("B6", [[cargo_trab]])    # CARGO
+        wsVale.update("F6", [[area_trab]])     # AREA
 
         # ===============================
         # 4) CARGAR ITEMS (fila 8 en adelante)
