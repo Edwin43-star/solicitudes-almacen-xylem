@@ -533,67 +533,43 @@ def generar_vale(id_solicitud):
         # ===============================
         # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
         # ===============================
-        # Borra solo tabla de items (filas 6 a 15 aprox)
-        wsVale.batch_clear(["A6:K15", "B6:B15", "C6:C15", "D6:D15", "G6:G15", "H6:H15", "I6:I15", "K6:K15"])
+        wsVale.batch_clear([
+            "A6:K15", "B6:B15", "C6:C15", "D6:D15",
+            "G6:G15", "H6:H15", "I6:I15", "K6:K15"
+        ])
 
         # ===============================
         # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
         # ===============================
-        # FECHA
-        wsVale.update("J2", [[cabecera["fecha"]]])
-
-        # TRABAJADOR (solicitante)
-        wsVale.update("C4", [[cabecera["solicitante"]]])
-
-        # ALMACENERO (logueado)
-        wsVale.update("F4", [[almacenero]])
-
-        # ===============================
-        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS (adaptado)
-        # ===============================
-        codigo_trab = ""
-        cargo_trab = ""
-        area_trab = ""
-
-        wsUsuarios = get_ws("Usuarios")
-        filas_usr = wsUsuarios.get_all_records()
-
-        nombre_sol = str(cabecera["solicitante"]).strip().upper()
-
-        for f in filas_usr:
-            nombre_usr = str(f.get("NOMBRES Y APELLIDOS", "")).strip().upper()
-            if nombre_sol == nombre_usr:
-                codigo_trab = str(f.get("N°", "")).strip()
-                cargo_trab = str(f.get("PUESTO", "")).strip()
-                area_trab = ""  # no existe en tu sheet
-                break
+        wsVale.update("J2", [[cabecera["fecha"]]])          # FECHA
+        wsVale.update("C4", [[cabecera["solicitante"]]])    # TRABAJADOR
+        wsVale.update("F4", [[almacenero]])                 # ALMACENERO
 
         # ===============================
         # 4) CARGAR ITEMS (fila 6 en adelante)
         # ===============================
-        fila = 6
+        fila_ = 6
         n = 1
 
         for it in items:
-            wsVale.update(f"A{fila}", [[n]])                     # N°
-            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])      # CODIGO
-            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])   # CODIGO BARRAS
-            wsVale.update(f"D{fila}", [[it["descripcion"]]])     # DESCRIPCION
-            wsVale.update(f"G{fila}", [[it["cantidad"]]])        # CANT (por item)
-            wsVale.update(f"H{fila}", [[it["um"]]])              # UM (por item)
-            wsVale.update(f"I{fila}", [["NUEVO"]])               # NUEVO
-            wsVale.update(f"K{fila}", [["CAMBIO"]])              # CAMBIO
+            wsVale.update(f"A{fila_}", [[n]])                     # N°
+            wsVale.update(f"B{fila_}", [[it["codigo_sap"]]])      # CODIGO
+            wsVale.update(f"C{fila_}", [[it["codigo_barras"]]])   # CODIGO BARRAS
+            wsVale.update(f"D{fila_}", [[it["descripcion"]]])     # DESCRIPCION
+            wsVale.update(f"G{fila_}", [[it["cantidad"]]])        # CANT
+            wsVale.update(f"H{fila_}", [[it["um"]]])              # UM
+            wsVale.update(f"I{fila_}", [["NUEVO"]])               # NUEVO
+            wsVale.update(f"K{fila_}", [["CAMBIO"]])              # CAMBIO
 
-            fila += 1
+            fila_ += 1
             n += 1
 
         # ===============================
         # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
         # ===============================
-        # J=10 ESTADO, K=11 ALMACENERO
         for fila_real in filas_para_actualizar:
-            wsSol.update_cell(fila_real, 10, "ATENDIDO")
-            wsSol.update_cell(fila_real, 11, almacenero)
+            wsSol.update_cell(fila_real, 10, "ATENDIDO")  # J
+            wsSol.update_cell(fila_real, 11, almacenero)  # K
 
         # ✅ WHATSAPP AL SOLICITANTE (CONFIRMACIÓN)
         try:
@@ -610,9 +586,9 @@ def generar_vale(id_solicitud):
         flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
         return redirect(url_for("bandeja"))
 
-        except Exception as e:
-            flash(f"❌ Error al generar vale: {e}", "danger")
-            return redirect(url_for("bandeja"))
+    except Exception as e:
+        flash(f"❌ Error al generar vale: {e}", "danger")
+        return redirect(url_for("bandeja"))
 
 # ===============================
 # API CATALOGO
