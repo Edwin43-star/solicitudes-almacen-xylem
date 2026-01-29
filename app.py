@@ -133,16 +133,94 @@ def get_usuario(codigo):
     ws = get_ws("Usuarios")
     filas = ws.get_all_records()
 
+    codigo = str(codigo).strip()
+
     for fila in filas:
-        if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
+        # En tu sheet: el "código" es la columna N°
+        if str(fila.get("N°", "")).strip() == codigo:
+            nombre = str(fila.get("NOMBRES Y APELLIDOS", "")).strip()
+            puesto = str(fila.get("PUESTO", "")).strip()
+            telefono = str(fila.get("TELEFONO", "")).strip()
+            activo = str(fila.get("ACTIVO", "")).strip().upper()
+
+            # Si no está activo, lo consideramos no válido
+            if activo and activo != "SI":
+                return None
+
+            # Mantengo claves para no romper nada
             return {
-                "codigo": str(fila.get("CODIGO", "")).strip(),
-                "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
-                "cargo": str(fila.get("CARGO", "")).strip(),
-                "area": str(fila.get("AREA", "")).strip(),
-                "rol": str(fila.get("ROL", "")).strip(),
+                "codigo": str(fila.get("N°", "")).strip(),
+                "nombre": nombre,
+                "cargo": puesto,
+                "area": "",
+                "rol": "",
+                "telefono": telefono
             }
+
     return None
+
+def get_telefono_usuario(nombre):
+    """
+    Busca TELEFONO del solicitante en hoja Usuarios:
+    - NOMBRES Y APELLIDOS
+    - TELEFONO
+    Devuelve número en formato 51XXXXXXXXX (sin +, sin espacios).
+    """
+    ws = get_ws("Usuarios")
+    filas = ws.get_all_records()
+
+    nombre = str(nombre).strip().upper()
+
+    for fila in filas:
+        nombre_usr = str(fila.get("NOMBRES Y APELLIDOS", "")).strip().upper()
+        if nombre == nombre_usr:
+            tel = str(fila.get("TELEFONO", "")).strip()
+            tel = tel.replace("+", "").replace(" ", "")
+            return tel
+
+    return ""
+
+
+def enviar_whatsapp_atendido(numero, solicitante, id_solicitud, almacenero):
+    """
+    Envía mensaje WhatsApp al solicitante indicando que su solicitud fue atendida.
+    """
+    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID:
+        print("⚠️ WhatsApp no configurado")
+        return
+
+    if not numero:
+        print("⚠️ Solicitante sin número WhatsApp")
+        return
+
+    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
+
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    mensaje = (
+        f"✅ SOLICITUD ATENDIDA\n"
+        f"👷 Solicitante: {solicitante}\n"
+        f"🧾 ID: {id_solicitud}\n"
+        f"📌 Atendido por: {almacenero}\n\n"
+        f"Ya puedes acercarte al almacén."
+    )
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": str(numero),
+        "type": "text",
+        "text": {"body": mensaje}
+    }
+
+    try:
+        r = requests.post(url, json=payload, headers=headers)
+        print(f"✅ WhatsApp ATENDIDO enviado a {numero}: ", r.status_code, r.text)
+    except Exception as e:
+        print(f"❌ Error WhatsApp ATENDIDO ({numero}):", e)
+
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -471,7 +549,7 @@ def generar_vale(id_solicitud):
         wsVale.update("F4", [[almacenero]])
 
         # ===============================
-        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
+        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS (adaptado)
         # ===============================
         codigo_trab = ""
         cargo_trab = ""
@@ -482,14 +560,12 @@ def generar_vale(id_solicitud):
 
         nombre_sol = str(cabecera["solicitante"]).strip().upper()
 
-        for fila in filas_usr:
-            nombre_usr = str(fila.get("NOMBRE", "")).strip().upper()
-            nombre_usr2 = str(fila.get("NOMBRE COMPLETO", "")).strip().upper()
-
-            if nombre_sol == nombre_usr or nombre_sol == nombre_usr2:
-                codigo_trab = str(fila.get("CODIGO", "")).strip()
-                cargo_trab = str(fila.get("CARGO", "")).strip()
-                area_trab = str(fila.get("AREA", "")).strip()
+        for f in filas_usr:
+            nombre_usr = str(f.get("NOMBRES Y APELLIDOS", "")).strip().upper()
+            if nombre_sol == nombre_usr:
+                codigo_trab = str(f.get("N°", "")).strip()
+                cargo_trab = str(f.get("PUESTO", "")).strip()
+                area_trab = ""  # no existe en tu sheet
                 break
 
         # ===============================
@@ -519,13 +595,24 @@ def generar_vale(id_solicitud):
             wsSol.update_cell(fila_real, 10, "ATENDIDO")
             wsSol.update_cell(fila_real, 11, almacenero)
 
+        # ✅ WHATSAPP AL SOLICITANTE (CONFIRMACIÓN)
+        try:
+            telefono_sol = get_telefono_usuario(cabecera["solicitante"])
+            enviar_whatsapp_atendido(
+                telefono_sol,
+                cabecera["solicitante"],
+                id_solicitud,
+                almacenero
+            )
+        except Exception as e:
+            print("⚠️ No se pudo notificar al solicitante:", e)
+
         flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
         return redirect(url_for("bandeja"))
 
-    except Exception as e:
-        flash(f"❌ Error al generar vale: {e}", "danger")
-        return redirect(url_for("bandeja"))
-
+        except Exception as e:
+            flash(f"❌ Error al generar vale: {e}", "danger")
+            return redirect(url_for("bandeja"))
 
 # ===============================
 # API CATALOGO
