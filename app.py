@@ -14,11 +14,8 @@ from collections import defaultdict
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
 
-# ✅ Almaceneros (2 números)
-WHATSAPP_TOS = [
-    "51939947031",  # Edwin
-    "51999174320",  # Edgar
-]
+# ✅ Destinatarios almacén (2 almaceneros)
+WHATSAPP_TOS = ["51939947031", "51999174320"]  # Edwin / Edgar
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -124,9 +121,9 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
         try:
             r = requests.post(url, json=payload, headers=headers)
-            print(f"✅ WhatsApp enviado a {numero}: ", r.status_code, r.text)
+            print(f"✅ WhatsApp enviado a {destino}: ", r.status_code, r.text)
         except Exception as e:
-            print(f"❌ Error WhatsApp ({numero}):", e)
+            print(f"❌ Error WhatsApp ({destino}):", e)
 
 
 # ===============================
