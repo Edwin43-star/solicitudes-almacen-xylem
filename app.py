@@ -13,7 +13,12 @@ from collections import defaultdict
 # ===============================
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
-WHATSAPP_TO = os.environ.get("WHATSAPP_TO")  # Tu número con código país, ej: 51939947031
+
+# ✅ Almaceneros (2 números)
+WHATSAPP_TOS = [
+    "51939947031",  # Edwin
+    "51999174320",  # Edgar
+]
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -79,43 +84,49 @@ def buscar_en_catalogo(tipo, descripcion):
 # WHATSAPP
 # ===============================
 def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
-    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID or not WHATSAPP_TO:
+    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID:
         print("⚠️ WhatsApp no configurado")
         return
 
-    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
+    if not WHATSAPP_TOS or len(WHATSAPP_TOS) == 0:
+        print("⚠️ Lista de destinatarios WhatsApp vacía")
+        return
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": WHATSAPP_TO,
-        "type": "template",
-        "template": {
-            "name": "solicitud_almacen_xylem_nueva",
-            "language": {"code": "es_PE"},
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": str(solicitante)},
-                        {"type": "text", "text": str(tipo)},
-                        {"type": "text", "text": str(descripcion)},
-                        {"type": "text", "text": str(cantidad)}
-                    ]
-                }
-            ]
-        }
-    }
+    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
 
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    try:
-        r = requests.post(url, json=payload, headers=headers)
-        print("✅ WhatsApp plantilla enviado:", r.status_code, r.text)
-    except Exception as e:
-        print("❌ Error WhatsApp:", e)
+    # ✅ Enviar a cada almacenero
+    for numero in WHATSAPP_TOS:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": str(numero),
+            "type": "template",
+            "template": {
+                "name": "solicitud_almacen_xylem_nueva",
+                "language": {"code": "es_PE"},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {"type": "text", "text": str(solicitante)},
+                            {"type": "text", "text": str(tipo)},
+                            {"type": "text", "text": str(descripcion)},
+                            {"type": "text", "text": str(cantidad)}
+                        ]
+                    }
+                ]
+            }
+        }
+
+        try:
+            r = requests.post(url, json=payload, headers=headers)
+            print(f"✅ WhatsApp enviado a {numero}: ", r.status_code, r.text)
+        except Exception as e:
+            print(f"❌ Error WhatsApp ({numero}):", e)
 
 
 # ===============================
