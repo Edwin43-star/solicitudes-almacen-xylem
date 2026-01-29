@@ -121,9 +121,9 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
 
         try:
             r = requests.post(url, json=payload, headers=headers)
-            print(f"✅ WhatsApp enviado a {destino}: ", r.status_code, r.text)
+            print(f"✅ WhatsApp enviado a {numero}: ", r.status_code, r.text)
         except Exception as e:
-            print(f"❌ Error WhatsApp ({destino}):", e)
+            print(f"❌ Error WhatsApp ({numero}):", e)
 
 
 # ===============================
