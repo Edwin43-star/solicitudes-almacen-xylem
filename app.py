@@ -133,94 +133,16 @@ def get_usuario(codigo):
     ws = get_ws("Usuarios")
     filas = ws.get_all_records()
 
-    codigo = str(codigo).strip()
-
     for fila in filas:
-        # En tu sheet: el "código" es la columna N°
-        if str(fila.get("N°", "")).strip() == codigo:
-            nombre = str(fila.get("NOMBRES Y APELLIDOS", "")).strip()
-            puesto = str(fila.get("PUESTO", "")).strip()
-            telefono = str(fila.get("TELEFONO", "")).strip()
-            activo = str(fila.get("ACTIVO", "")).strip().upper()
-
-            # Si no está activo, lo consideramos no válido
-            if activo and activo != "SI":
-                return None
-
-            # Mantengo claves para no romper nada
+        if str(fila.get("CODIGO", "")).strip() == str(codigo).strip():
             return {
-                "codigo": str(fila.get("N°", "")).strip(),
-                "nombre": nombre,
-                "cargo": puesto,
-                "area": "",
-                "rol": "",
-                "telefono": telefono
+                "codigo": str(fila.get("CODIGO", "")).strip(),
+                "nombre": str(fila.get("NOMBRE COMPLETO", "")).strip(),
+                "cargo": str(fila.get("CARGO", "")).strip(),
+                "area": str(fila.get("AREA", "")).strip(),
+                "rol": str(fila.get("ROL", "")).strip(),
             }
-
     return None
-
-def get_telefono_usuario(nombre):
-    """
-    Busca TELEFONO del solicitante en hoja Usuarios:
-    - NOMBRES Y APELLIDOS
-    - TELEFONO
-    Devuelve número en formato 51XXXXXXXXX (sin +, sin espacios).
-    """
-    ws = get_ws("Usuarios")
-    filas = ws.get_all_records()
-
-    nombre = str(nombre).strip().upper()
-
-    for fila in filas:
-        nombre_usr = str(fila.get("NOMBRES Y APELLIDOS", "")).strip().upper()
-        if nombre == nombre_usr:
-            tel = str(fila.get("TELEFONO", "")).strip()
-            tel = tel.replace("+", "").replace(" ", "")
-            return tel
-
-    return ""
-
-
-def enviar_whatsapp_atendido(numero, solicitante, id_solicitud, almacenero):
-    """
-    Envía mensaje WhatsApp al solicitante indicando que su solicitud fue atendida.
-    """
-    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID:
-        print("⚠️ WhatsApp no configurado")
-        return
-
-    if not numero:
-        print("⚠️ Solicitante sin número WhatsApp")
-        return
-
-    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
-
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    mensaje = (
-        f"✅ SOLICITUD ATENDIDA\n"
-        f"👷 Solicitante: {solicitante}\n"
-        f"🧾 ID: {id_solicitud}\n"
-        f"📌 Atendido por: {almacenero}\n\n"
-        f"Ya puedes acercarte al almacén."
-    )
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": str(numero),
-        "type": "text",
-        "text": {"body": mensaje}
-    }
-
-    try:
-        r = requests.post(url, json=payload, headers=headers)
-        print(f"✅ WhatsApp ATENDIDO enviado a {numero}: ", r.status_code, r.text)
-    except Exception as e:
-        print(f"❌ Error WhatsApp ATENDIDO ({numero}):", e)
-
 
 # ===============================
 # RUTAS PRINCIPALES
@@ -533,55 +455,69 @@ def generar_vale(id_solicitud):
         # ===============================
         # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
         # ===============================
-        wsVale.batch_clear([
-            "A6:K15", "B6:B15", "C6:C15", "D6:D15",
-            "G6:G15", "H6:H15", "I6:I15", "K6:K15"
-        ])
+        # Borra solo tabla de items (filas 6 a 15 aprox)
+        wsVale.batch_clear(["A6:K15", "B6:B15", "C6:C15", "D6:D15", "G6:G15", "H6:H15", "I6:I15", "K6:K15"])
 
         # ===============================
         # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
         # ===============================
-        wsVale.update("J2", [[cabecera["fecha"]]])          # FECHA
-        wsVale.update("C4", [[cabecera["solicitante"]]])    # TRABAJADOR
-        wsVale.update("F4", [[almacenero]])                 # ALMACENERO
+        # FECHA
+        wsVale.update("J2", [[cabecera["fecha"]]])
+
+        # TRABAJADOR (solicitante)
+        wsVale.update("C4", [[cabecera["solicitante"]]])
+
+        # ALMACENERO (logueado)
+        wsVale.update("F4", [[almacenero]])
+
+        # ===============================
+        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
+        # ===============================
+        codigo_trab = ""
+        cargo_trab = ""
+        area_trab = ""
+
+        wsUsuarios = get_ws("Usuarios")
+        filas_usr = wsUsuarios.get_all_records()
+
+        nombre_sol = str(cabecera["solicitante"]).strip().upper()
+
+        for fila in filas_usr:
+            nombre_usr = str(fila.get("NOMBRE", "")).strip().upper()
+            nombre_usr2 = str(fila.get("NOMBRE COMPLETO", "")).strip().upper()
+
+            if nombre_sol == nombre_usr or nombre_sol == nombre_usr2:
+                codigo_trab = str(fila.get("CODIGO", "")).strip()
+                cargo_trab = str(fila.get("CARGO", "")).strip()
+                area_trab = str(fila.get("AREA", "")).strip()
+                break
 
         # ===============================
         # 4) CARGAR ITEMS (fila 6 en adelante)
         # ===============================
-        fila_ = 6
+        fila = 6
         n = 1
 
         for it in items:
-            wsVale.update(f"A{fila_}", [[n]])                     # N°
-            wsVale.update(f"B{fila_}", [[it["codigo_sap"]]])      # CODIGO
-            wsVale.update(f"C{fila_}", [[it["codigo_barras"]]])   # CODIGO BARRAS
-            wsVale.update(f"D{fila_}", [[it["descripcion"]]])     # DESCRIPCION
-            wsVale.update(f"G{fila_}", [[it["cantidad"]]])        # CANT
-            wsVale.update(f"H{fila_}", [[it["um"]]])              # UM
-            wsVale.update(f"I{fila_}", [["NUEVO"]])               # NUEVO
-            wsVale.update(f"K{fila_}", [["CAMBIO"]])              # CAMBIO
+            wsVale.update(f"A{fila}", [[n]])                     # N°
+            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])      # CODIGO
+            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])   # CODIGO BARRAS
+            wsVale.update(f"D{fila}", [[it["descripcion"]]])     # DESCRIPCION
+            wsVale.update(f"G{fila}", [[it["cantidad"]]])        # CANT (por item)
+            wsVale.update(f"H{fila}", [[it["um"]]])              # UM (por item)
+            wsVale.update(f"I{fila}", [["NUEVO"]])               # NUEVO
+            wsVale.update(f"K{fila}", [["CAMBIO"]])              # CAMBIO
 
-            fila_ += 1
+            fila += 1
             n += 1
 
         # ===============================
         # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
         # ===============================
+        # J=10 ESTADO, K=11 ALMACENERO
         for fila_real in filas_para_actualizar:
-            wsSol.update_cell(fila_real, 10, "ATENDIDO")  # J
-            wsSol.update_cell(fila_real, 11, almacenero)  # K
-
-        # ✅ WHATSAPP AL SOLICITANTE (CONFIRMACIÓN)
-        try:
-            telefono_sol = get_telefono_usuario(cabecera["solicitante"])
-            enviar_whatsapp_atendido(
-                telefono_sol,
-                cabecera["solicitante"],
-                id_solicitud,
-                almacenero
-            )
-        except Exception as e:
-            print("⚠️ No se pudo notificar al solicitante:", e)
+            wsSol.update_cell(fila_real, 10, "ATENDIDO")
+            wsSol.update_cell(fila_real, 11, almacenero)
 
         flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
         return redirect(url_for("bandeja"))
@@ -589,6 +525,7 @@ def generar_vale(id_solicitud):
     except Exception as e:
         flash(f"❌ Error al generar vale: {e}", "danger")
         return redirect(url_for("bandeja"))
+
 
 # ===============================
 # API CATALOGO
