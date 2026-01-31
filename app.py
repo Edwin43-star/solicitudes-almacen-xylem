@@ -559,6 +559,45 @@ def api_catalogo():
         print("ERROR /api/catalogo:", e)
         return jsonify({"items": [], "error": str(e)}), 500
 
+# ===============================
+# WEBHOOK WHATSAPP (META)
+# ===============================
+@app.route("/webhook", methods=["GET"])
+def webhook_verify():
+    """
+    Meta verifica el webhook haciendo GET con:
+    hub.mode
+    hub.verify_token
+    hub.challenge
+    """
+    verify_token = "xylem_antamina_2026"  # debe ser IGUAL al de Meta
+
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode == "subscribe" and token == verify_token:
+        print("✅ Webhook verificado correctamente")
+        return challenge, 200
+
+    print("❌ Webhook verificación fallida")
+    return "Forbidden", 403
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook_receive():
+    """
+    Meta enviará aquí los eventos:
+    - mensajes entrantes
+    - estados de mensajes
+    """
+    try:
+        data = request.get_json()
+        print("📩 Webhook recibido:", json.dumps(data, indent=2, ensure_ascii=False))
+    except Exception as e:
+        print("❌ Error leyendo webhook:", e)
+
+    return "EVENT_RECEIVED", 200	
 
 @app.route("/logout")
 def logout():
