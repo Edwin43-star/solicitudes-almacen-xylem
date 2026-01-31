@@ -559,50 +559,46 @@ def api_catalogo():
         print("ERROR /api/catalogo:", e)
         return jsonify({"items": [], "error": str(e)}), 500
 
-# ===============================
-# WEBHOOK WHATSAPP (META)
-# ===============================
-@app.route("/webhook", methods=["GET"])
-def webhook_verify():
-    """
-    Meta verifica el webhook haciendo GET con:
-    hub.mode
-    hub.verify_token
-    hub.challenge
-    """
-    verify_token = "xylem_antamina_2026"  # debe ser IGUAL al de Meta
-
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
-
-    if mode == "subscribe" and token == verify_token:
-        print("✅ Webhook verificado correctamente")
-        return challenge, 200
-
-    print("❌ Webhook verificación fallida")
-    return "Forbidden", 403
-
-
-@app.route("/webhook", methods=["POST"])
-def webhook_receive():
-    """
-    Meta enviará aquí los eventos:
-    - mensajes entrantes
-    - estados de mensajes
-    """
-    try:
-        data = request.get_json()
-        print("📩 Webhook recibido:", json.dumps(data, indent=2, ensure_ascii=False))
-    except Exception as e:
-        print("❌ Error leyendo webhook:", e)
-
-    return "EVENT_RECEIVED", 200	
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+# ============================================================
+#   WEBHOOK META WHATSAPP (VERIFICACION + RECEPCION EVENTOS)
+#   URL: /webhook
+# ============================================================
+
+@app.route("/webhook", methods=["GET", "POST"])
+def webhook():
+    # 1) VERIFICACION (GET) - Meta envia hub.challenge
+    if request.method == "GET":
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+
+        # ✅ Tu verify token definido en Meta (Config. Webhook)
+        VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "xylem_antamina_2026")
+
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            print("✅ Webhook verificado correctamente")
+            return challenge, 200
+        else:
+            print("❌ Webhook verificación fallida")
+            return "Forbidden", 403
+
+    # 2) EVENTOS (POST) - Meta enviará mensajes / estados
+    try:
+        data = request.get_json(silent=True) or {}
+        print("📩 Webhook recibido:", data)
+
+        # Aquí podrías procesar mensajes entrantes si luego lo necesitas.
+        # Por ahora SOLO respondemos 200 para que Meta no reintente.
+        return "EVENT_RECEIVED", 200
+    except Exception as e:
+        print("❌ Error webhook:", e)
+        return "ERROR", 500
 
 
 if __name__ == "__main__":
