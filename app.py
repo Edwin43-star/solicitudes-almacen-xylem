@@ -566,8 +566,6 @@ def logout():
     return redirect(url_for("login"))
 
 
-
-
 # ============================================================
 #   WEBHOOK META WHATSAPP (VERIFICACION + RECEPCION EVENTOS)
 #   URL: /webhook
@@ -584,7 +582,7 @@ def webhook():
         # ✅ Tu verify token definido en Meta (Config. Webhook)
         VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "antamina-xylem-2026")
 
-        if mode == "subscribe" and token == VERIFY_TOKEN:
+        if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
             print("✅ Webhook verificado correctamente")
             return challenge, 200
         else:
