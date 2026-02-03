@@ -14,10 +14,60 @@ from collections import defaultdict
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
 
-# ✅ Destinatarios almacén (desde Render ENV: WHATSAPP_TO)
-# Formato esperado en Render: 51939947031,51999174320
-WHATSAPP_TO = os.environ.get("WHATSAPP_TO", "").strip()
-WHATSAPP_TOS = [n.strip() for n in WHATSAPP_TO.split(",") if n.strip()]
+# ✅ Destinatarios almacén (2 almaceneros)
+WHATSAPP_TOS = os.environ.get("WHATSAPP_TOS", "")  # JSON: ["519...","519..."] o 519...
+
+
+def get_whatsapp_tos():
+    """Lee destinatarios desde Render.
+    - WHATSAPP_TOS='["51939947031","51999174320"]'
+    - o WHATSAPP_TOS='51939947031,51999174320'
+    """
+    raw = (WHATSAPP_TOS or "").strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            return [str(x).strip().replace(" ", "") for x in data if str(x).strip()]
+    except Exception:
+        if "," in raw:
+            return [x.strip().replace(" ", "") for x in raw.split(",") if x.strip()]
+        return [raw.replace(" ", "")]
+    return []
+
+
+def formatear_mensaje_whatsapp_solicitud(solicitante: str, items: list) -> str:
+    """Mensaje bonito: solicitante + items + cantidades + hora"""
+    ahora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    solicitante = (solicitante or "").strip().upper()
+
+    lineas = []
+    lineas.append("📦 *NUEVA SOLICITUD DE ALMACÉN*")
+    if solicitante:
+        lineas.append(f"👷 *Solicitante:* {solicitante}")
+    lineas.append(f"🕒 *Hora:* {ahora}")
+    lineas.append("")
+    lineas.append("📝 *Ítems:*")
+
+    if not items:
+        lineas.append("• (sin ítems)")
+    else:
+        for i, it in enumerate(items, 1):
+            tipo = (it.get("tipo") or "").strip()
+            desc = (it.get("descripcion") or "").strip()
+            cant = str(it.get("cantidad") or "").strip()
+            if tipo and desc:
+                lineas.append(f"{i}. [{tipo}] {desc}  x{cant}")
+            elif desc:
+                lineas.append(f"{i}. {desc}  x{cant}")
+            else:
+                lineas.append(f"{i}. x{cant}")
+
+    lineas.append("")
+    lineas.append("✅ Ingresar a la bandeja para atender.")
+    return "\n".join(lineas)
+
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
@@ -82,48 +132,44 @@ def buscar_en_catalogo(tipo, descripcion):
 # ===============================
 # WHATSAPP
 # ===============================
-def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
+
+def enviar_whatsapp_solicitud(solicitante: str, items: list):
+    """Notificación WhatsApp: solicitante + ítems.
+    Destinatarios salen de Render (WHATSAPP_TOS).
+    """
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_ID:
         print("⚠️ WhatsApp no configurado")
         return
 
-    if not WHATSAPP_TOS or len(WHATSAPP_TOS) == 0:
+    tos = get_whatsapp_tos()
+    if not tos:
         print("⚠️ Lista de destinatarios WhatsApp vacía")
         return
 
-    url = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages"
+    mensaje = formatear_mensaje_whatsapp_solicitud(solicitante, items)
 
+    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    mensaje = (
-        "📦 *NUEVA SOLICITUD ALMACÉN*\n"
-        f"👷 Solicitante: {solicitante}\n"
-        f"📌 Tipo: {tipo}\n"
-        f"🧾 Detalle: {descripcion}\n"
-        f"🔢 Cantidad total: {cantidad}\n"
-    )
-
-    for numero in WHATSAPP_TOS:
+    for numero in tos:
         payload = {
             "messaging_product": "whatsapp",
-            "to": str(numero),
+            "to": numero,
             "type": "text",
             "text": {"body": mensaje}
         }
 
         try:
-            r = requests.post(url, json=payload, headers=headers, timeout=25)
+            r = requests.post(url, json=payload, headers=headers, timeout=20)
             print(f"✅ WhatsApp enviado a {numero}: ", r.status_code, r.text)
         except Exception as e:
             print(f"❌ Error WhatsApp ({numero}):", e)
 
 
-# ===============================
-# USUARIOS
-# ===============================
+
 def get_usuario(codigo):
     ws = get_ws("Usuarios")
     filas = ws.get_all_records()
@@ -280,8 +326,7 @@ def guardar_solicitud():
             ])
 
         # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
-        # (así como antes: cuando el trabajador envía la solicitud)
-        enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
+        enviar_whatsapp_solicitud(solicitante, items)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
         return redirect(url_for("solicitar"))
@@ -303,6 +348,17 @@ def bandeja():
     ws = get_ws("Solicitudes")
     filas = ws.get_all_values()
 
+    # A ID_SOLICITUD
+    # B FECHA
+    # C SOLICITANTE
+    # D TIPO
+    # E CODIGO_SAP
+    # F CODIGO_BARRAS
+    # G DESCRIPCION
+    # H UM
+    # I CANTIDAD
+    # J ESTADO
+    # K ALMACENERO
     grupos = defaultdict(list)
 
     # Recorremos filas (desde la 2 porque la 1 es cabecera)
@@ -323,7 +379,7 @@ def bandeja():
             continue
 
         grupos[id_solicitud].append({
-            "fila": i,
+            "fila": i,  # fila real en Google Sheets (para actualizar_estado)
             "id_solicitud": id_solicitud,
             "fecha": fecha,
             "solicitante": solicitante,
@@ -337,6 +393,7 @@ def bandeja():
             "almacenero": almacenero,
         })
 
+    # Armamos lista final para la vista (agrupada)
     solicitudes_agrupadas = []
     for id_s, detalle in grupos.items():
         cab = detalle[0]
@@ -347,10 +404,10 @@ def bandeja():
             "tipo": cab["tipo"],
             "estado": cab["estado"],
             "almacenero": cab["almacenero"],
-            "detalle": detalle,
+            "detalle": detalle,   # ✅ OJO: 'detalle' (NO 'items')
         })
 
-    # Ordenar por id desc
+    # Ordenar por id desc (más reciente arriba)
     solicitudes_agrupadas = sorted(
         solicitudes_agrupadas,
         key=lambda x: x["id_solicitud"],
@@ -402,9 +459,12 @@ def generar_vale(id_solicitud):
 
         items = []
         cabecera = None
-        filas_para_actualizar = []
+        filas_para_actualizar = []  # filas reales en sheet Solicitudes
 
-        for idx, fila in enumerate(filas[1:], start=2):
+        # ===============================
+        # 1) Buscar todos los items del ID_SOLICITUD
+        # ===============================
+        for idx, fila in enumerate(filas[1:], start=2):  # idx = fila real en Sheets
             if len(fila) < 11:
                 continue
 
@@ -433,15 +493,27 @@ def generar_vale(id_solicitud):
 
         almacenero = session.get("nombre", "")
 
-        # Limpiar zona de items
+        # ===============================
+        # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
+        # ===============================
+        # Borra solo tabla de items (filas 6 a 15 aprox)
         wsVale.batch_clear(["A6:K15", "B6:B15", "C6:C15", "D6:D15", "G6:G15", "H6:H15", "I6:I15", "K6:K15"])
 
-        # Cabecera
+        # ===============================
+        # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
+        # ===============================
+        # FECHA
         wsVale.update("J2", [[cabecera["fecha"]]])
+
+        # TRABAJADOR (solicitante)
         wsVale.update("C4", [[cabecera["solicitante"]]])
+
+        # ALMACENERO (logueado)
         wsVale.update("F4", [[almacenero]])
 
-        # Datos trabajador desde Usuarios
+        # ===============================
+        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
+        # ===============================
         codigo_trab = ""
         cargo_trab = ""
         area_trab = ""
@@ -461,24 +533,29 @@ def generar_vale(id_solicitud):
                 area_trab = str(fila.get("AREA", "")).strip()
                 break
 
-        # Cargar items
+        # ===============================
+        # 4) CARGAR ITEMS (fila 6 en adelante)
+        # ===============================
         fila = 6
         n = 1
 
         for it in items:
-            wsVale.update(f"A{fila}", [[n]])
-            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])
-            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])
-            wsVale.update(f"D{fila}", [[it["descripcion"]]])
-            wsVale.update(f"G{fila}", [[it["cantidad"]]])
-            wsVale.update(f"H{fila}", [[it["um"]]])
-            wsVale.update(f"I{fila}", [["NUEVO"]])
-            wsVale.update(f"K{fila}", [["CAMBIO"]])
+            wsVale.update(f"A{fila}", [[n]])                     # N°
+            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])      # CODIGO
+            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])   # CODIGO BARRAS
+            wsVale.update(f"D{fila}", [[it["descripcion"]]])     # DESCRIPCION
+            wsVale.update(f"G{fila}", [[it["cantidad"]]])        # CANT (por item)
+            wsVale.update(f"H{fila}", [[it["um"]]])              # UM (por item)
+            wsVale.update(f"I{fila}", [["NUEVO"]])               # NUEVO
+            wsVale.update(f"K{fila}", [["CAMBIO"]])              # CAMBIO
 
             fila += 1
             n += 1
 
-        # Marcar solicitud como ATENDIDA
+        # ===============================
+        # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
+        # ===============================
+        # J=10 ESTADO, K=11 ALMACENERO
         for fila_real in filas_para_actualizar:
             wsSol.update_cell(fila_real, 10, "ATENDIDO")
             wsSol.update_cell(fila_real, 11, almacenero)
@@ -546,7 +623,7 @@ def webhook():
         # ✅ Tu verify token definido en Meta (Config. Webhook)
         VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "antamina-xylem-2026")
 
-        if mode == "subscribe" and token == VERIFY_TOKEN:
+        if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
             print("✅ Webhook verificado correctamente")
             return challenge, 200
         else:
@@ -557,6 +634,9 @@ def webhook():
     try:
         data = request.get_json(silent=True) or {}
         print("📩 Webhook recibido:", data)
+
+        # Aquí podrías procesar mensajes entrantes si luego lo necesitas.
+        # Por ahora SOLO respondemos 200 para que Meta no reintente.
         return "EVENT_RECEIVED", 200
     except Exception as e:
         print("❌ Error webhook:", e)
