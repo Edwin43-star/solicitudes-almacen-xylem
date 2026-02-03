@@ -39,7 +39,7 @@ def get_whatsapp_tos():
 
 def formatear_mensaje_whatsapp_solicitud(solicitante: str, items: list) -> str:
     """Mensaje bonito: solicitante + items + cantidades + hora"""
-    ahora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    ahora = datetime.now(ZoneInfo("America/Lima")).strftime("%d/%m/%Y %H:%M")
     solicitante = (solicitante or "").strip().upper()
 
     lineas = []
