@@ -14,8 +14,10 @@ from collections import defaultdict
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID")
 
-# ✅ Destinatarios almacén (2 almaceneros)
-WHATSAPP_TOS = ["51939947031", "51999174320"]  # Edwin / Edgar
+# ✅ Destinatarios almacén (desde Render ENV: WHATSAPP_TO)
+# Formato esperado en Render: 51939947031,51999174320
+WHATSAPP_TO = os.environ.get("WHATSAPP_TO", "").strip()
+WHATSAPP_TOS = [n.strip() for n in WHATSAPP_TO.split(",") if n.strip()]
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "xylem123")
