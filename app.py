@@ -89,7 +89,8 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         print("⚠️ Lista de destinatarios WhatsApp vacía")
         return
 
-    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_ID}/messages"
+    # ✅ versión más actual
+    url = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages"
 
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
@@ -120,7 +121,7 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         }
 
         try:
-            r = requests.post(url, json=payload, headers=headers)
+            r = requests.post(url, json=payload, headers=headers, timeout=25)
             print(f"✅ WhatsApp enviado a {numero}: ", r.status_code, r.text)
         except Exception as e:
             print(f"❌ Error WhatsApp ({numero}):", e)
@@ -285,6 +286,7 @@ def guardar_solicitud():
             ])
 
         # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
+        # (así como antes: cuando el trabajador envía la solicitud)
         enviar_whatsapp(solicitante, tipo_general, descripcion_lista, cantidad_total)
 
         flash("✅ Solicitud registrada. El almacén la atenderá en breve.", "success")
@@ -307,17 +309,6 @@ def bandeja():
     ws = get_ws("Solicitudes")
     filas = ws.get_all_values()
 
-    # A ID_SOLICITUD
-    # B FECHA
-    # C SOLICITANTE
-    # D TIPO
-    # E CODIGO_SAP
-    # F CODIGO_BARRAS
-    # G DESCRIPCION
-    # H UM
-    # I CANTIDAD
-    # J ESTADO
-    # K ALMACENERO
     grupos = defaultdict(list)
 
     # Recorremos filas (desde la 2 porque la 1 es cabecera)
@@ -338,7 +329,7 @@ def bandeja():
             continue
 
         grupos[id_solicitud].append({
-            "fila": i,  # fila real en Google Sheets (para actualizar_estado)
+            "fila": i,
             "id_solicitud": id_solicitud,
             "fecha": fecha,
             "solicitante": solicitante,
@@ -352,7 +343,6 @@ def bandeja():
             "almacenero": almacenero,
         })
 
-    # Armamos lista final para la vista (agrupada)
     solicitudes_agrupadas = []
     for id_s, detalle in grupos.items():
         cab = detalle[0]
@@ -363,10 +353,10 @@ def bandeja():
             "tipo": cab["tipo"],
             "estado": cab["estado"],
             "almacenero": cab["almacenero"],
-            "detalle": detalle,   # ✅ OJO: 'detalle' (NO 'items')
+            "detalle": detalle,
         })
 
-    # Ordenar por id desc (más reciente arriba)
+    # Ordenar por id desc
     solicitudes_agrupadas = sorted(
         solicitudes_agrupadas,
         key=lambda x: x["id_solicitud"],
@@ -418,12 +408,9 @@ def generar_vale(id_solicitud):
 
         items = []
         cabecera = None
-        filas_para_actualizar = []  # filas reales en sheet Solicitudes
+        filas_para_actualizar = []
 
-        # ===============================
-        # 1) Buscar todos los items del ID_SOLICITUD
-        # ===============================
-        for idx, fila in enumerate(filas[1:], start=2):  # idx = fila real en Sheets
+        for idx, fila in enumerate(filas[1:], start=2):
             if len(fila) < 11:
                 continue
 
@@ -452,27 +439,15 @@ def generar_vale(id_solicitud):
 
         almacenero = session.get("nombre", "")
 
-        # ===============================
-        # 2) LIMPIAR SOLO ZONA DE ITEMS (NO TOCAR EL DISEÑO)
-        # ===============================
-        # Borra solo tabla de items (filas 6 a 15 aprox)
+        # Limpiar zona de items
         wsVale.batch_clear(["A6:K15", "B6:B15", "C6:C15", "D6:D15", "G6:G15", "H6:H15", "I6:I15", "K6:K15"])
 
-        # ===============================
-        # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
-        # ===============================
-        # FECHA
+        # Cabecera
         wsVale.update("J2", [[cabecera["fecha"]]])
-
-        # TRABAJADOR (solicitante)
         wsVale.update("C4", [[cabecera["solicitante"]]])
-
-        # ALMACENERO (logueado)
         wsVale.update("F4", [[almacenero]])
 
-        # ===============================
-        # 🔹 DATOS DEL TRABAJADOR DESDE USUARIOS
-        # ===============================
+        # Datos trabajador desde Usuarios
         codigo_trab = ""
         cargo_trab = ""
         area_trab = ""
@@ -492,29 +467,24 @@ def generar_vale(id_solicitud):
                 area_trab = str(fila.get("AREA", "")).strip()
                 break
 
-        # ===============================
-        # 4) CARGAR ITEMS (fila 6 en adelante)
-        # ===============================
+        # Cargar items
         fila = 6
         n = 1
 
         for it in items:
-            wsVale.update(f"A{fila}", [[n]])                     # N°
-            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])      # CODIGO
-            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])   # CODIGO BARRAS
-            wsVale.update(f"D{fila}", [[it["descripcion"]]])     # DESCRIPCION
-            wsVale.update(f"G{fila}", [[it["cantidad"]]])        # CANT (por item)
-            wsVale.update(f"H{fila}", [[it["um"]]])              # UM (por item)
-            wsVale.update(f"I{fila}", [["NUEVO"]])               # NUEVO
-            wsVale.update(f"K{fila}", [["CAMBIO"]])              # CAMBIO
+            wsVale.update(f"A{fila}", [[n]])
+            wsVale.update(f"B{fila}", [[it["codigo_sap"]]])
+            wsVale.update(f"C{fila}", [[it["codigo_barras"]]])
+            wsVale.update(f"D{fila}", [[it["descripcion"]]])
+            wsVale.update(f"G{fila}", [[it["cantidad"]]])
+            wsVale.update(f"H{fila}", [[it["um"]]])
+            wsVale.update(f"I{fila}", [["NUEVO"]])
+            wsVale.update(f"K{fila}", [["CAMBIO"]])
 
             fila += 1
             n += 1
 
-        # ===============================
-        # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
-        # ===============================
-        # J=10 ESTADO, K=11 ALMACENERO
+        # Marcar solicitud como ATENDIDA
         for fila_real in filas_para_actualizar:
             wsSol.update_cell(fila_real, 10, "ATENDIDO")
             wsSol.update_cell(fila_real, 11, almacenero)
@@ -582,7 +552,7 @@ def webhook():
         # ✅ Tu verify token definido en Meta (Config. Webhook)
         VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "antamina-xylem-2026")
 
-        if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
+        if mode == "subscribe" and token == VERIFY_TOKEN:
             print("✅ Webhook verificado correctamente")
             return challenge, 200
         else:
@@ -593,9 +563,6 @@ def webhook():
     try:
         data = request.get_json(silent=True) or {}
         print("📩 Webhook recibido:", data)
-
-        # Aquí podrías procesar mensajes entrantes si luego lo necesitas.
-        # Por ahora SOLO respondemos 200 para que Meta no reintente.
         return "EVENT_RECEIVED", 200
     except Exception as e:
         print("❌ Error webhook:", e)
