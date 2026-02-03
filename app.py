@@ -89,7 +89,6 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         print("⚠️ Lista de destinatarios WhatsApp vacía")
         return
 
-    # ✅ versión más actual
     url = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_ID}/messages"
 
     headers = {
@@ -97,27 +96,20 @@ def enviar_whatsapp(solicitante, tipo, descripcion, cantidad):
         "Content-Type": "application/json"
     }
 
-    # ✅ Enviar a cada almacenero
+    mensaje = (
+        "📦 *NUEVA SOLICITUD ALMACÉN*\n"
+        f"👷 Solicitante: {solicitante}\n"
+        f"📌 Tipo: {tipo}\n"
+        f"🧾 Detalle: {descripcion}\n"
+        f"🔢 Cantidad total: {cantidad}\n"
+    )
+
     for numero in WHATSAPP_TOS:
         payload = {
             "messaging_product": "whatsapp",
             "to": str(numero),
-            "type": "template",
-            "template": {
-                "name": "solicitud_almacen_xylem_nueva",
-                "language": {"code": "es_PE"},
-                "components": [
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {"type": "text", "text": str(solicitante)},
-                            {"type": "text", "text": str(tipo)},
-                            {"type": "text", "text": str(descripcion)},
-                            {"type": "text", "text": str(cantidad)}
-                        ]
-                    }
-                ]
-            }
+            "type": "text",
+            "text": {"body": mensaje}
         }
 
         try:
