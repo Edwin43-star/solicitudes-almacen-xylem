@@ -19,22 +19,29 @@ WHATSAPP_TOS = os.environ.get("WHATSAPP_TOS", "")  # JSON: ["519...","519..."] o
 
 
 def get_whatsapp_tos():
-    """Lee destinatarios desde Render.
-    - WHATSAPP_TOS='["51939947031","51999174320"]'
-    - o WHATSAPP_TOS='51939947031,51999174320'
     """
-    raw = (WHATSAPP_TOS or "").strip()
+    Lee destinatarios SIEMPRE desde Render (dinámico).
+    Acepta:
+    - '["51939947031","51999174320"]'
+    - '51939947031,51999174320'
+    """
+    raw = (os.environ.get("WHATSAPP_TOS") or "").strip()
+
     if not raw:
+        print("⚠️ WHATSAPP_TOS vacío en Render")
         return []
+
     try:
         data = json.loads(raw)
         if isinstance(data, list):
             return [str(x).strip().replace(" ", "") for x in data if str(x).strip()]
     except Exception:
-        if "," in raw:
-            return [x.strip().replace(" ", "") for x in raw.split(",") if x.strip()]
-        return [raw.replace(" ", "")]
-    return []
+        pass
+
+    if "," in raw:
+        return [x.strip().replace(" ", "") for x in raw.split(",") if x.strip()]
+
+    return [raw.replace(" ", "")]
 
 
 def formatear_mensaje_whatsapp_solicitud(solicitante: str, items: list) -> str:
