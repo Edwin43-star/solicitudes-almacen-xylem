@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
+
 body{
     font-family: Arial;
     margin:20px;
@@ -14,6 +15,12 @@ body{
 .container{
     max-width:900px;
     margin:auto;
+}
+
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
 .row{
@@ -82,6 +89,14 @@ th, td{
     border:none;
     padding:10px;
 }
+
+.btn-salir{
+    background:#6c757d;
+    color:white;
+    border:none;
+    padding:8px 15px;
+}
+
 </style>
 
 </head>
@@ -89,25 +104,40 @@ th, td{
 
 <div class="container">
 
-<h2>Nueva Solicitud</h2>
+<div class="header">
 
+<div>
+<h2>Nueva Solicitud</h2>
 <p>Solicitante: <b>{{ session.nombre }}</b></p>
+</div>
+
+<div>
+<button class="btn-salir" onclick="salir()">Salir</button>
+</div>
+
+</div>
+
 
 <div class="row">
 
 <select id="tipo">
 <option value="">Seleccione...</option>
+
+<!-- SOLO ESTOS DOS -->
 <option value="EPP">EPP</option>
 <option value="CONSUMIBLE">CONSUMIBLE</option>
-<option value="HERRAMIENTA">HERRAMIENTA</option>
-<option value="REPUESTO">REPUESTO</option>
+
 </select>
 
+
 <div style="position:relative; width:100%;">
+
 <input type="text" id="buscar" placeholder="Escriba el artículo...">
 
 <div id="lista_autocomplete"></div>
+
 </div>
+
 
 <input type="number" id="cantidad" value="1" min="1">
 
@@ -119,6 +149,7 @@ th, td{
 <h3>Items a solicitar</h3>
 
 <table id="tabla">
+
 <thead>
 <tr>
 <th>Tipo</th>
@@ -132,12 +163,18 @@ th, td{
 
 </table>
 
+
 <br>
 
+
 <form method="POST" action="/guardar_solicitud" onsubmit="return enviar()">
+
 <input type="hidden" name="items_json" id="items_json">
+
 <button class="btn-send">Enviar solicitud</button>
+
 </form>
+
 
 </div>
 
@@ -146,6 +183,16 @@ th, td{
 
 let catalogo=[]
 let items=[]
+
+
+// ===============================
+// BOTON SALIR
+// ===============================
+function salir(){
+
+window.location.href="/logout"
+
+}
 
 
 // ===============================
@@ -158,6 +205,7 @@ let tipo=this.value
 if(!tipo)return
 
 let res=await fetch("/api/catalogo?tipo="+tipo)
+
 let data=await res.json()
 
 catalogo=data.items || []
@@ -177,12 +225,17 @@ let lista=document.getElementById("lista_autocomplete")
 lista.innerHTML=""
 
 if(texto.length<2){
+
 lista.style.display="none"
+
 return
+
 }
 
 let resultados=catalogo.filter(x=>
+
 (x.descripcion || "").toLowerCase().includes(texto)
+
 )
 
 resultados.slice(0,20).forEach(item=>{
@@ -210,34 +263,42 @@ lista.style.display="block"
 })
 
 
-
 // ===============================
 // AGREGAR ITEM
 // ===============================
 function agregarItem(){
 
 let tipo=document.getElementById("tipo").value
+
 let descripcion=document.getElementById("buscar").value
+
 let cantidad=document.getElementById("cantidad").value
 
 if(!tipo || !descripcion || !cantidad){
+
 alert("Complete los datos")
+
 return
+
 }
 
 items.push({
+
 tipo:tipo,
+
 descripcion:descripcion,
+
 cantidad:cantidad
+
 })
 
 render()
 
 document.getElementById("buscar").value=""
+
 document.getElementById("cantidad").value=1
 
 }
-
 
 
 // ===============================
@@ -256,13 +317,19 @@ let tr=document.createElement("tr")
 tr.innerHTML=`
 
 <td>${item.tipo}</td>
+
 <td>${item.descripcion}</td>
+
 <td>${item.cantidad}</td>
 
 <td>
+
 <button class="btn-remove" onclick="eliminar(${index})">
+
 Quitar
+
 </button>
+
 </td>
 
 `
