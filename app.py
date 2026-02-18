@@ -468,7 +468,7 @@ def generar_vale(id_solicitud):
         # 1) Buscar todos los items del ID_SOLICITUD
         # ===============================
         for idx, fila in enumerate(filas[1:], start=2):  # idx = fila real en Sheets
-            if len(fila) < 11:
+            if len(fila) < 10:
                 continue
 
             if fila[0].strip() == id_solicitud.strip():
@@ -545,19 +545,20 @@ def generar_vale(id_solicitud):
         n = 1
 
         for it in items:
-            fila = [""] * 11  # columnas A-K
+            fila = [""] * 11  # columnas A-G
 
             fila[0] = n                        # A
             fila[1] = it["codigo_sap"]        # B
-            fila[3] = it["descripcion"]       # C
-            fila[6] = it["cantidad"]          # F
-            fila[7] = it["um"]                # G
-            fila[8] = "NUEVO"                 # H
-            fila[10] = "CAMBIO"               # I
+            fila[2] = it["descripcion"]       # C
+            fila[3] = it["cantidad"]          # F
+            fila[4] = it["um"]                # G
+            fila[5] = "NUEVO"                 # H
+            fila[6] = "CAMBIO"                # J
 
             datos.append(fila)
 
             n += 1
+
         # Escribir todo en una sola operación
         rango = f"A{fila_inicio}:K{fila_inicio + len(datos) - 1}"
 
@@ -567,9 +568,14 @@ def generar_vale(id_solicitud):
         # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
         # ===============================
         # I=10 ESTADO, J=11 ALMACENERO
+        updates = []
         for fila_real in filas_para_actualizar:
-            wsSol.update_cell(fila_real, 10, "ATENDIDO")
-            wsSol.update_cell(fila_real, 11, almacenero)
+            updates.append({
+                "range": f"I{fila_real}:J{fila_real}",
+                "values": [["ATENDIDO", almacenero]]
+            })
+
+        wsSol.batch_update(updates)
 
         flash("✅ VALE generado y solicitud marcada como ATENDIDO", "success")
         return redirect(url_for("bandeja"))
