@@ -41,8 +41,7 @@
           {% set est = (sol.estado or "")|upper %}
           {% if est == "ATENDIDO" %}
 
-            <!-- BOTÓN DESACTIVADO -->
-            <button class="btn btn-secondary btn-sm" disabled title="Solicitud ya atendida">
+            <button class="btn btn-secondary btn-sm" disabled>
               📄 GENERAR VALE
             </button>
 
@@ -70,7 +69,6 @@
           <thead class="table-light">
             <tr>
               <th>COD SAP</th>
-              <th>COD BARRAS</th>
               <th>DESCRIPCIÓN</th>
               <th class="text-center">U.M</th>
               <th class="text-center">CANT</th>
@@ -81,7 +79,6 @@
             {% for it in sol.detalle %}
             <tr>
               <td style="min-width:160px;">{{ it.codigo_sap }}</td>
-              <td style="min-width:160px;">{{ it.codigo_barras }}</td>
               <td>{{ it.descripcion }}</td>
               <td class="text-center" style="width:90px;">{{ it.um }}</td>
               <td class="text-center" style="width:80px;"><b>{{ it.cantidad }}</b></td>
