@@ -550,10 +550,10 @@ def generar_vale(id_solicitud):
             fila[0] = n                        # A
             fila[1] = it["codigo_sap"]        # B
             fila[2] = it["descripcion"]       # C
-            fila[3] = it["cantidad"]          # F
-            fila[4] = it["um"]                # G
-            fila[5] = "NUEVO"                 # H
-            fila[6] = "CAMBIO"                # J
+            fila[5] = it["cantidad"]          # F
+            fila[6] = it["um"]                # G
+            fila[7] = "NUEVO"                 # H
+            fila[8] = "CAMBIO"                # J
 
             datos.append(fila)
 
