@@ -504,8 +504,9 @@ def generar_vale(id_solicitud):
         # ===============================
         # 3) CARGAR CABECERA DEL VALE (CELDAS EXACTAS)
         # ===============================
-        # FECHA
-        wsVale.update("J2", [[cabecera["fecha"]]])
+        # FECHA ACTUAL (momento de generar el vale)
+        fecha_vale = datetime.now(ZoneInfo("America/Lima")).strftime("%d/%m/%Y %H:%M")
+        wsVale.update("J2", [[fecha_vale]])
 
         # TRABAJADOR (solicitante)
         wsVale.update("C4", [[cabecera["solicitante"]]])
