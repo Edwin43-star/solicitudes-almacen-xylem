@@ -324,12 +324,11 @@ def guardar_solicitud():
                 solicitante,      # C SOLICITANTE
                 tipo,             # D TIPO
                 codigo_sap,       # E CODIGO_SAP
-                codigo_barras,    # F CODIGO_BARRAS
-                descripcion,      # G DESCRIPCION
-                um,               # H UM
-                cantidad,         # I CANTIDAD
-                "PENDIENTE",      # J ESTADO
-                ""                # K ALMACENERO
+                descripcion,      # F DESCRIPCION
+                um,               # G UM
+                cantidad,         # H CANTIDAD
+                "PENDIENTE",      # I ESTADO
+                ""                # J ALMACENERO
             ])
 
         # ✅ ENVIAR WHATSAPP (UN SOLO MENSAJE)
@@ -360,12 +359,11 @@ def bandeja():
     # C SOLICITANTE
     # D TIPO
     # E CODIGO_SAP
-    # F CODIGO_BARRAS
-    # G DESCRIPCION
-    # H UM
-    # I CANTIDAD
-    # J ESTADO
-    # K ALMACENERO
+    # F DESCRIPCION
+    # G UM
+    # H CANTIDAD
+    # I ESTADO
+    # J ALMACENERO
     grupos = defaultdict(list)
 
     # Recorremos filas (desde la 2 porque la 1 es cabecera)
@@ -375,12 +373,11 @@ def bandeja():
         solicitante = fila[2] if len(fila) > 2 else ""
         tipo = fila[3] if len(fila) > 3 else ""
         codigo_sap = fila[4] if len(fila) > 4 else ""
-        codigo_barras = fila[5] if len(fila) > 5 else ""
-        descripcion = fila[6] if len(fila) > 6 else ""
-        um = fila[7] if len(fila) > 7 else ""
-        cantidad = fila[8] if len(fila) > 8 else ""
-        estado = fila[9] if len(fila) > 9 else ""
-        almacenero = fila[10] if len(fila) > 10 else ""
+        descripcion = fila[5] if len(fila) > 5 else ""
+        um = fila[6] if len(fila) > 6 else ""
+        cantidad = fila[7] if len(fila) > 7 else ""
+        estado = fila[8] if len(fila) > 8 else ""
+        almacenero = fila[9] if len(fila) > 9 else ""
 
         if id_solicitud.strip() == "":
             continue
@@ -392,7 +389,6 @@ def bandeja():
             "solicitante": solicitante,
             "tipo": tipo,
             "codigo_sap": codigo_sap,
-            "codigo_barras": codigo_barras,
             "descripcion": descripcion,
             "um": um,
             "cantidad": cantidad,
@@ -438,7 +434,7 @@ def actualizar_estado():
     try:
         ws = get_ws("Solicitudes")
 
-        # J=10 estado, K=11 almacenero
+        # I=10 estado, J=11 almacenero
         ws.update_cell(fila, 10, nuevo_estado)
         ws.update_cell(fila, 11, almacenero)
 
@@ -486,10 +482,9 @@ def generar_vale(id_solicitud):
 
                 items.append({
                     "codigo_sap": fila[4],
-                    "codigo_barras": fila[5],
-                    "descripcion": fila[6],
-                    "um": fila[7],
-                    "cantidad": fila[8],
+                    "descripcion": fila[5],
+                    "um": fila[6],
+                    "cantidad": fila[7],
                 })
 
                 filas_para_actualizar.append(idx)
@@ -554,11 +549,11 @@ def generar_vale(id_solicitud):
 
             fila[0] = n                        # A
             fila[1] = it["codigo_sap"]        # B
-            fila[3] = it["descripcion"]       # D
-            fila[6] = it["cantidad"]          # G
-            fila[7] = it["um"]                # H
-            fila[8] = "NUEVO"                 # I
-            fila[10] = "CAMBIO"               # K
+            fila[3] = it["descripcion"]       # C
+            fila[6] = it["cantidad"]          # F
+            fila[7] = it["um"]                # G
+            fila[8] = "NUEVO"                 # H
+            fila[10] = "CAMBIO"               # I
 
             datos.append(fila)
 
@@ -571,7 +566,7 @@ def generar_vale(id_solicitud):
         # ===============================
         # 5) MARCAR SOLICITUD COMO ATENDIDA (TODAS LAS FILAS DEL ID)
         # ===============================
-        # J=10 ESTADO, K=11 ALMACENERO
+        # I=10 ESTADO, J=11 ALMACENERO
         for fila_real in filas_para_actualizar:
             wsSol.update_cell(fila_real, 10, "ATENDIDO")
             wsSol.update_cell(fila_real, 11, almacenero)
