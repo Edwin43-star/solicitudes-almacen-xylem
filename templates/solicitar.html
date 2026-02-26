@@ -244,7 +244,11 @@ let div=document.createElement("div")
 
 div.className="item_autocomplete"
 
-div.innerText=item.descripcion
+// 🔹 MOSTRAR DESCRIPCIÓN + UNIDAD
+div.innerHTML = `
+  ${item.descripcion}
+  <span style="float:right; font-weight:bold; color:#555;">(${item.um || ""})</span>
+`
 
 div.onclick=function(){
     document.getElementById("buscar").value=item.descripcion
