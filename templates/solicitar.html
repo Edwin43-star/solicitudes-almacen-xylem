@@ -97,6 +97,86 @@ th, td{
     padding:8px 15px;
 }
 
+/* ===============================
+   MODAL BONITO
+=============================== */
+.modal-backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 2000;
+}
+
+.modal{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2001;
+  padding: 16px;
+}
+
+.modal-card{
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  overflow: hidden;
+  animation: pop 140ms ease-out;
+}
+
+@keyframes pop{
+  from { transform: scale(0.98); opacity: 0.6; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-title{
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.modal-x{
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-body{
+  padding: 14px;
+  font-size: 14px;
+}
+
+.modal-footer{
+  padding: 12px 14px;
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+  border-top: 1px solid #eee;
+}
+
+.btn-modal{
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn-si{ background:#198754; color:#fff; }
+.btn-no{ background:#6c757d; color:#fff; }
+
 </style>
 
 </head>
@@ -116,6 +196,27 @@ th, td{
 </div>
 
 </div>
+
+<!-- ===============================
+     FLASH + ABRIR MODAL (SI SUCCESS)
+=============================== -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+      <div style="margin:12px 0; padding:10px; border:1px solid #ccc; border-radius:6px;">
+        {{ msg }}
+      </div>
+
+      {% if cat == "success" %}
+        <script>
+          window.addEventListener("load", () => {
+            mostrarModalConfirmacion();
+          });
+        </script>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endwith %}
 
 
 <div class="row">
@@ -358,8 +459,70 @@ return true
 
 }
 
+
+// ===============================
+// MODAL CONFIRMACION
+// ===============================
+function mostrarModalConfirmacion(){
+  document.getElementById("modal_backdrop").style.display = "block";
+  document.getElementById("modal_confirm").style.display = "flex";
+
+  // cerrar con ESC
+  document.addEventListener("keydown", escHandler);
+}
+
+function cerrarModal(){
+  document.getElementById("modal_backdrop").style.display = "none";
+  document.getElementById("modal_confirm").style.display = "none";
+  document.removeEventListener("keydown", escHandler);
+}
+
+function escHandler(e){
+  if(e.key === "Escape") cerrarModal();
+}
+
+function accionSi(){
+  // Sí → dejar pantalla lista (tabla vacía)
+  items = [];
+  render();
+
+  document.getElementById("tipo").value = "";
+  document.getElementById("buscar").value = "";
+  document.getElementById("cantidad").value = 1;
+  document.getElementById("buscar").dataset.um = "";
+
+  cerrarModal();
+}
+
+function accionNo(){
+  // No → salir al login
+  window.location.href = "/logout";
+}
+
 </script>
 
+<!-- ===============================
+     MODAL CONFIRMACION
+=============================== -->
+<div id="modal_backdrop" class="modal-backdrop" style="display:none;"></div>
+
+<div id="modal_confirm" class="modal" style="display:none;" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">✅ Solicitud enviada</div>
+      <button class="modal-x" type="button" onclick="cerrarModal()">×</button>
+    </div>
+
+    <div class="modal-body">
+      ¿Desea realizar otra solicitud?
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-modal btn-no" onclick="accionNo()">No</button>
+      <button type="button" class="btn-modal btn-si" onclick="accionSi()">Sí</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
