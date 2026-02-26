@@ -154,8 +154,8 @@ th, td{
 <tr>
 <th>Tipo</th>
 <th>Descripción</th>
+<th>U.M</th>
 <th>Cantidad</th>
-<th></th>
 </tr>
 </thead>
 
@@ -247,11 +247,9 @@ div.className="item_autocomplete"
 div.innerText=item.descripcion
 
 div.onclick=function(){
-
-document.getElementById("buscar").value=item.descripcion
-
-lista.style.display="none"
-
+    document.getElementById("buscar").value=item.descripcion
+    document.getElementById("buscar").dataset.um = item.um || ""
+    lista.style.display="none"
 }
 
 lista.appendChild(div)
@@ -269,35 +267,27 @@ lista.style.display="block"
 function agregarItem(){
 
 let tipo=document.getElementById("tipo").value
-
 let descripcion=document.getElementById("buscar").value
-
 let cantidad=document.getElementById("cantidad").value
+let um=document.getElementById("buscar").dataset.um || ""
 
 if(!tipo || !descripcion || !cantidad){
-
-alert("Complete los datos")
-
-return
-
+    alert("Complete los datos")
+    return
 }
 
 items.push({
-
-tipo:tipo,
-
-descripcion:descripcion,
-
-cantidad:cantidad
-
+    tipo:tipo,
+    descripcion:descripcion,
+    cantidad:cantidad,
+    um:um
 })
 
 render()
 
 document.getElementById("buscar").value=""
-
 document.getElementById("cantidad").value=1
-
+document.getElementById("buscar").dataset.um=""
 }
 
 
@@ -315,23 +305,15 @@ items.forEach((item,index)=>{
 let tr=document.createElement("tr")
 
 tr.innerHTML=`
-
 <td>${item.tipo}</td>
-
 <td>${item.descripcion}</td>
-
+<td style="text-align:center;"><b>${item.um || ""}</b></td>
 <td>${item.cantidad}</td>
-
 <td>
-
 <button class="btn-remove" onclick="eliminar(${index})">
-
 Quitar
-
 </button>
-
 </td>
-
 `
 
 tbody.appendChild(tr)
